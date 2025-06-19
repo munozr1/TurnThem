@@ -1,7 +1,8 @@
 #include "raylib.h"
 #include <vector>
+#include <cmath>
 
-
+void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
 
 struct GameObject {
     public:
@@ -26,14 +27,21 @@ struct Projectile : public GameObject{
             Vector2 origin = {frame.width/2.0f, 6.5f};// 6.5 is the bulle minus the swoosh
             DrawTexturePro(sprite, frame,dest,origin,(angle * RAD2DEG) + 90, WHITE);
         };
+        
+        // Check if projectile is out of screen bounds
+        bool isOutOfBounds(int screenWidth, int screenHeight) {
+            return position.x < -50 || position.x > screenWidth + 50 || 
+                   position.y < -50 || position.y > screenHeight + 50;
+        }
+        
     private:
-    Texture2D& sprite;
-    Vector2 position;
-    Vector2 dim;
-    Vector2 frame_dim;
-    Rectangle frame;
-    float speed;
-    float angle;
+        Texture2D& sprite;
+        Vector2 position;
+        Vector2 dim;
+        Vector2 frame_dim;
+        Rectangle frame;
+        float speed;
+        float angle;
 };
 
 
@@ -123,8 +131,9 @@ enum RotationDirection {
 };
 struct SCannon: public GameObject {
     public:
-        SCannon(Texture2D& sprite_sheet, float width, float height, int fpu, int sprites, float x, float y):
+        SCannon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, float height, int fpu, int sprites, float x, float y):
             sprite_sheet(sprite_sheet),
+            proj_sprite(proj_sprite),
             sprites(sprites),
             animate(true),
             frame_width(width),
@@ -151,6 +160,8 @@ struct SCannon: public GameObject {
             if (!(frame_counter % frames_per_update)){
                 frame_counter = 0;
                 current_frame++;
+                if(current_frame % sprites == 0)
+                    fire(proj_sprite, {position.x + (float)frame_width/2, position.y}, 90, 0);
                 frame.x = frame_width*(current_frame % sprites);
             }
         }
@@ -163,6 +174,7 @@ struct SCannon: public GameObject {
     private: 
         uint64_t frame_counter = 0;
         Texture2D& sprite_sheet;
+        Texture2D& proj_sprite;
         Rectangle frame;
         Vector2 position;
         int frame_width;
@@ -174,15 +186,15 @@ struct SCannon: public GameObject {
         RotationDirection current_rotation_direction = CW;
         bool animate;
 };
-
-std::vector<GameObject*> game_objects;
-std::vector<WeaponCard*> weapon_cards;
-
 enum MouseState {
     NORMAL,
     DRAGGING,
     DROP
 };
+
+std::vector<GameObject*> heap_objects;
+std::vector<GameObject*> stack_objects;
+std::vector<WeaponCard*> weapon_cards;
 
 int main(void)
 {
@@ -208,18 +220,16 @@ int main(void)
 
     //--------------------------------------------------------------------------------------
 
-    SCannon scannon(scannon_sprite_sheet, 50.0f, 65.0f, 9, 3, 200, 200);
+    SCannon scannon(scannon_sprite_sheet, shell_projectile_sprite ,50.0f, 65.0f, 9, 3, 200, 200);
     Weapon cannon(cannon_sprite_sheet, shell_projectile_sprite, 50.0f, 65.0f, 13, 3, 200, 280);
-    Projectile shell(shell_projectile_sprite, {50,600}, {9,19}, {9,19}, 10.0, 90);
-    game_objects.push_back(&scannon);
-    game_objects.push_back(&cannon);
-    game_objects.push_back(&shell);
+    stack_objects.push_back(&scannon);
+    stack_objects.push_back(&cannon);
     
     //--------------------------------------------------------------------------------------
     WeaponCard scannon_card(scannon_sprite_sheet, 150, 90.0f, 120.0f, 28, 653);
     WeaponCard cannon_card(cannon_sprite_sheet, 150, 90.0f, 120.0f, 153, 653);
-    game_objects.push_back(&scannon_card);
-    game_objects.push_back(&cannon_card);
+    stack_objects.push_back(&scannon_card);
+    stack_objects.push_back(&cannon_card);
     weapon_cards.push_back(&scannon_card);
     weapon_cards.push_back(&cannon_card);
     //--------------------------------------------------------------------------------------
@@ -278,10 +288,27 @@ int main(void)
             //DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
             //DrawTextureRec(cannon_sprite_sheet, cannon_frame, position, WHITE);
             DrawTextureRec(deck_sprite_sheet, deck_frame, deck_position, WHITE);
-            for (auto * obj : game_objects) {
+            for (auto * obj : stack_objects) {
                 obj->update();
                 obj->draw();
             }
+            for (auto it = heap_objects.begin(); it != heap_objects.end(); ) {
+                if (*it == nullptr) {
+                    it = heap_objects.erase(it);
+                } else {
+                    // example: projectile cleanup
+                    Projectile* p = dynamic_cast<Projectile*>(*it);
+                    if (p && p->isOutOfBounds(screenWidth, screenHeight)) {
+                        delete p;
+                        it = heap_objects.erase(it);
+                    } else {
+                        p->update();
+                        p->draw();
+                        ++it;
+                    }
+                }
+            }
+
 
         EndDrawing();
         //----------------------------------------------------------------------------------
@@ -289,8 +316,19 @@ int main(void)
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
+    for (auto obj : heap_objects) {
+        delete obj;
+    }
+    heap_objects.clear();
+
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
 
     return 0;
+}
+
+void fire(Texture2D& sprite, Vector2 pos, float speed, float angle){
+    if(sprite.id == 0) return;
+    Projectile* shell = new Projectile(sprite, pos, {9,19}, {9,19}, speed, angle);
+    heap_objects.push_back(shell);
 }
