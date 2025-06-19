@@ -13,19 +13,20 @@ struct GameObject {
 
 struct Projectile : public GameObject{
     public:
-        Projectile(Texture2D& sprite, Vector2 pos, Vector2 dim, Vector2 frame_dim, float speed, float angle):
-            sprite(sprite), position(pos), dim(dim), frame((Rectangle){0,0,frame_dim.x, frame_dim.y}), speed(speed), angle(angle){};
+        Projectile(Texture2D& sprite, Vector2 pos, Vector2 frame_dim, float speed, float angle):
+            sprite(sprite), position(pos), frame((Rectangle){0,0,frame_dim.x, frame_dim.y}), speed(speed), angle_deg(angle){};
         void update(){
             const float dt = GetFrameTime();
-            float dx = speed * cos(angle);
-            float dy = speed * sin(angle);
+            const float rad = angle_deg * DEG2RAD;
+            const float dx = speed * cos(rad);
+            const float dy = speed * sin(rad);
             position.x += dx * dt;
             position.y += dy * dt;
         };
         void draw(){
-            Rectangle dest = {position.x, position.y, frame.width, frame.height};
-            Vector2 origin = {frame.width/2.0f, 6.5f};// 6.5 is the bulle minus the swoosh
-            DrawTexturePro(sprite, frame,dest,origin,(angle * RAD2DEG) + 90, WHITE);
+            const Rectangle dest = {position.x, position.y, frame.width, frame.height};
+            const Vector2 origin = {frame.width/2.0f, 6.5f};// 6.5 is the bulle minus the swoosh
+            DrawTexturePro(sprite, frame,dest,origin, angle_deg + 90, WHITE);
         };
         
         // Check if projectile is out of screen bounds
@@ -41,7 +42,7 @@ struct Projectile : public GameObject{
         Vector2 frame_dim;
         Rectangle frame;
         float speed;
-        float angle;
+        float angle_deg;
 };
 
 
@@ -67,9 +68,6 @@ struct WeaponCard : public GameObject {
         void set_dragging(bool b){
             dragging = b;
         };
-        /*
-         * Here we dispatch projectiles
-         */
         void update(){}
         void draw(){
             Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
@@ -86,9 +84,9 @@ struct WeaponCard : public GameObject {
 
 uint64_t frame_counter = 0;
 
-struct Weapon : public GameObject {
+struct Cannon : public GameObject {
     public:
-        Weapon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, float height, int fpu, int sprites, float x, float y):
+        Cannon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, float height, int fpu, int sprites, float x, float y):
             sprite_sheet(sprite_sheet),
             proj_sprite(proj_sprite),
             sprites(sprites),
@@ -98,14 +96,34 @@ struct Weapon : public GameObject {
             position((Vector2){x, y}),
             frame((Rectangle){0,0,width,height}),
             frames_per_update(fpu),
+            last_fire_time(0.0),
             current_frame(0){};
-        void update(){
-            if (!animate) return;
-            frame_counter++;
-            if (frame_counter >= frames_per_update){
+            void update() {
+            double current_time = GetTime();
+
+            // Fire and start animation every 0.5 seconds
+            if (current_time - last_fire_time >= 0.5) {
+                fire(proj_sprite, {position.x + (frame_width / 2.0f), position.y}, 800, -90);
+                last_fire_time = current_time;
+                animate = true;
+                current_frame = 0;
+                frame.x = 0;
                 frame_counter = 0;
-                current_frame++;
-                frame.x = frame_width*(current_frame % sprites);
+            }
+
+            if (animate) {
+                frame_counter++;
+                if (frame_counter >= frames_per_update) {
+                    frame_counter = 0;
+                    current_frame++;
+                    if (current_frame >= sprites) {
+                        animate = false;  // stop animating after finishing the cycle
+                        current_frame = 0;
+                        frame.x = 0;
+                    } else {
+                        frame.x = frame_width * current_frame;
+                    }
+                }
             }
         }
         void draw(){
@@ -123,6 +141,7 @@ struct Weapon : public GameObject {
         int current_frame;
         int sprites;
         bool animate;
+        double last_fire_time;
 };
 
 enum RotationDirection {
@@ -146,30 +165,35 @@ struct SCannon: public GameObject {
          * Swivel Cannon should rotate from 45-135 and complete an animation every 30 degrees.
          */
         void update(){
-            if(current_rotation_direction == CW && current_angle > -45){
-                current_angle--;
-                if(current_angle == -45) current_rotation_direction = CCW;
+            if(current_rotation_direction == CW && angle_deg> -45){
+                angle_deg--;
+                if(angle_deg == -45) current_rotation_direction = CCW;
             }
 
-            if(current_rotation_direction == CCW && current_angle < 45){
-                current_angle++;
-                if(current_angle == 45) current_rotation_direction = CW;
+            if(current_rotation_direction == CCW && angle_deg< 45){
+                angle_deg++;
+                if(angle_deg == 45) current_rotation_direction = CW;
             }
+
             if (!animate) return;
             frame_counter++;
             if (!(frame_counter % frames_per_update)){
                 frame_counter = 0;
                 current_frame++;
-                if(current_frame % sprites == 0)
-                    fire(proj_sprite, {position.x + (float)frame_width/2, position.y}, 90, 0);
+                if (current_frame % sprites == 0) {
+                    float angle_rad = angle_deg * DEG2RAD;
+                    float barrel_length = 19.7f;
+                    Vector2 origin = {frame_width / 2.0f, 0};
+                    Vector2 tip = {position.x , position.y};
+                    fire(proj_sprite, tip, 500, angle_deg - 90);
+                }
                 frame.x = frame_width*(current_frame % sprites);
             }
         }
         void draw(){
-            //DrawTexture(sprite_sheet, frame, position, WHITE);
             Rectangle dest = {position.x, position.y, (float)frame_width, (float)frame_height};
             Vector2 origin = {frame_width/2.0f, frame_height/2.0f};
-            DrawTexturePro(sprite_sheet, frame,dest,origin,current_angle, WHITE);
+            DrawTexturePro(sprite_sheet, frame, dest, origin, angle_deg, WHITE);
         }
     private: 
         uint64_t frame_counter = 0;
@@ -182,7 +206,7 @@ struct SCannon: public GameObject {
         int frames_per_update;
         int current_frame;
         int sprites;
-        float current_angle = 0;
+        float angle_deg= 0;
         RotationDirection current_rotation_direction = CW;
         bool animate;
 };
@@ -221,7 +245,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
 
     SCannon scannon(scannon_sprite_sheet, shell_projectile_sprite ,50.0f, 65.0f, 9, 3, 200, 200);
-    Weapon cannon(cannon_sprite_sheet, shell_projectile_sprite, 50.0f, 65.0f, 13, 3, 200, 280);
+    Cannon cannon(cannon_sprite_sheet, shell_projectile_sprite, 50.0f, 65.0f, 9, 3, 200, 280);
     stack_objects.push_back(&scannon);
     stack_objects.push_back(&cannon);
     
@@ -238,7 +262,6 @@ int main(void)
     float deck_height = 150;
     Rectangle deck_frame = {0, 0, deck_width, deck_height};
     Vector2 deck_position = {10.0f, 640.0f};
-
 
 
     // Main game loop
@@ -296,7 +319,7 @@ int main(void)
                 if (*it == nullptr) {
                     it = heap_objects.erase(it);
                 } else {
-                    // example: projectile cleanup
+                    //TODO: this has O(n) deletion, copy n-1 into n and delete n-1.
                     Projectile* p = dynamic_cast<Projectile*>(*it);
                     if (p && p->isOutOfBounds(screenWidth, screenHeight)) {
                         delete p;
@@ -329,6 +352,6 @@ int main(void)
 
 void fire(Texture2D& sprite, Vector2 pos, float speed, float angle){
     if(sprite.id == 0) return;
-    Projectile* shell = new Projectile(sprite, pos, {9,19}, {9,19}, speed, angle);
+    Projectile* shell = new Projectile(sprite, pos, {9,19}, speed, angle );
     heap_objects.push_back(shell);
 }
