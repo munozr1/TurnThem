@@ -191,12 +191,12 @@ int main(void)
     MouseState mouse_state = MouseState::NORMAL;
     WeaponCard* dragging_card;
     //--------------------------------------------------------------------------------------
+
     const int screenWidth = 520;
     const int screenHeight = 800;
     std::vector<Projectile> projectiles;
 
     InitWindow(screenWidth, screenHeight, "TurnThem");
-
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
 
     //--------------------------------------------------------------------------------------
@@ -204,29 +204,26 @@ int main(void)
     Texture2D cannon_sprite_sheet       = LoadTexture("assets/cannon_sprite_sheet.png");
     Texture2D scannon_sprite_sheet      = LoadTexture("assets/scannon_sprite_sheet.png");
     Texture2D shell_projectile_sprite   = LoadTexture("assets/shell_projectile.png");
+    Texture2D deck_sprite_sheet         = LoadTexture("assets/deck_sprite_sheet.png");
 
     //--------------------------------------------------------------------------------------
 
     SCannon scannon(scannon_sprite_sheet, 50.0f, 65.0f, 9, 3, 200, 200);
-    game_objects.push_back(&scannon);
-
     Weapon cannon(cannon_sprite_sheet, shell_projectile_sprite, 50.0f, 65.0f, 13, 3, 200, 280);
-    game_objects.push_back(&cannon);
-
     Projectile shell(shell_projectile_sprite, {50,600}, {9,19}, {9,19}, 10.0, 90);
+    game_objects.push_back(&scannon);
+    game_objects.push_back(&cannon);
     game_objects.push_back(&shell);
     
     //--------------------------------------------------------------------------------------
     WeaponCard scannon_card(scannon_sprite_sheet, 150, 90.0f, 120.0f, 28, 653);
-    game_objects.push_back(&scannon_card);
     WeaponCard cannon_card(cannon_sprite_sheet, 150, 90.0f, 120.0f, 153, 653);
+    game_objects.push_back(&scannon_card);
     game_objects.push_back(&cannon_card);
-
     weapon_cards.push_back(&scannon_card);
     weapon_cards.push_back(&cannon_card);
     //--------------------------------------------------------------------------------------
 
-    Texture2D deck_sprite_sheet = LoadTexture("assets/deck_sprite_sheet.png");
     float deck_width = 500;
     float deck_height = 150;
     Rectangle deck_frame = {0, 0, deck_width, deck_height};
