@@ -26,19 +26,27 @@ struct WeaponCard : public GameObject {
             frame_height(height),
             sprite_sheet(sprite_sheet),
             frame((Rectangle){150, 0, width, height}){}
-        void setxy(Vector2 pos){position = pos;}
+        void setxy(Vector2 pos){
+            pos.x -= (float)frame_width / 2;
+            pos.y -= (float)frame_height/ 2;
+            position = pos;
+        }
         bool isPointInside(Vector2 point){
             return point.x >= position.x &&
                 point.x <= position.x + frame_width &&
                 point.y >= position.y &&
                 point.y <= position.y + frame_height;
         }
+        void set_dragging(bool b){
+            dragging = b;
+        };
         /*
-         * Check if we are being moved around
+         * Here we dispatch projectiles
          */
         void update(){}
         void draw(){
-            DrawTextureRec(sprite_sheet, frame, position, WHITE);
+            Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
+            DrawTextureRec(sprite_sheet, frame, position, tint);
         }
     private: 
         Texture2D& sprite_sheet;
@@ -46,6 +54,7 @@ struct WeaponCard : public GameObject {
         Vector2 position;
         int frame_width;
         int frame_height;
+        bool dragging = false;
 };
 
 uint64_t frame_counter = 0;
@@ -87,6 +96,66 @@ struct Weapon : public GameObject {
         bool animate;
 };
 
+enum RotationDirection {
+    CW,
+    CCW
+};
+struct SCannon: public GameObject {
+    public:
+        SCannon(Texture2D& sprite_sheet, float width, float height, int fpu, int sprites, float x, float y):
+            sprite_sheet(sprite_sheet),
+            sprites(sprites),
+            animate(true),
+            frame_width(width),
+            frame_height(height),
+            position((Vector2){x, y}),
+            frame((Rectangle){0,0,width,height}),
+            frames_per_update(fpu),
+            current_frame(0){};
+        /*
+         * Swivel Cannon should rotate from 45-135 and complete an animation every 30 degrees.
+         */
+        void update(){
+            if(current_rotation_direction == CW && current_angle > -45){
+                current_angle--;
+                if(current_angle == -45) current_rotation_direction = CCW;
+            }
+
+            if(current_rotation_direction == CCW && current_angle < 45){
+                current_angle++;
+                if(current_angle == 45) current_rotation_direction = CW;
+            }
+            if (!animate) return;
+            frame_counter++;
+            if (!(frame_counter % frames_per_update)){
+                frame_counter = 0;
+                current_frame++;
+                frame.x = frame_width*(current_frame % sprites);
+            }
+        }
+        void draw(){
+            //DrawTexture(sprite_sheet, frame, position, WHITE);
+            Rectangle dest = {position.x, position.y, (float)frame_width, (float)frame_height};
+            Vector2 origin = {frame_width/2.0f, frame_height/2.0f};
+            DrawTexturePro(sprite_sheet, frame,dest,origin,current_angle, WHITE);
+        }
+    private: 
+        uint64_t frame_counter = 0;
+        Texture2D& sprite_sheet;
+        Rectangle frame;
+        Vector2 position;
+        int frame_width;
+        int frame_height;
+        int frames_per_update;
+        int current_frame;
+        int sprites;
+        float current_angle = 0;
+        RotationDirection current_rotation_direction = CW;
+        bool animate;
+};
+
+
+
 enum MouseState {
     NORMAL,
     DRAGGING,
@@ -116,7 +185,7 @@ int main(void)
 
     //--------------------------------------------------------------------------------------
 
-    Weapon scannon(scannon_sprite_sheet, 50.0f, 65.0f, 9, 3, 200, 200);
+    SCannon scannon(scannon_sprite_sheet, 50.0f, 65.0f, 9, 3, 200, 200);
     game_objects.push_back(&scannon);
     Weapon cannon(cannon_sprite_sheet, 50.0f, 65.0f, 13, 3, 200, 280);
     game_objects.push_back(&cannon);
@@ -145,13 +214,13 @@ int main(void)
         
         switch (mouse_state) {
             case MouseState::NORMAL:
-                std::cout << "normal" << std::endl;
                 if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                     /* check if the mouse is hovering over a card */
                     Vector2 mouse_pos = GetMousePosition();
                     for (auto card : weapon_cards){
                         if (card->isPointInside(mouse_pos)){
                             mouse_state = MouseState::DRAGGING;
+                            card->set_dragging(true);
                             dragging_card = card;
                             break;
                         }
@@ -163,6 +232,7 @@ int main(void)
                 dragging_card->setxy(mouse_pos);
                 if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)){
                     mouse_state = MouseState::NORMAL;
+                    dragging_card->set_dragging(false);
                 }
                 break;
                 }
