@@ -1,15 +1,7 @@
 #include "raylib.h"
 #include <vector>
-#include <iostream>
 
-struct Projectile {
-    Color color;
-    float x;
-    float y;
-    float radius;
-    float speed;
-    float angle;
-};
+
 
 struct GameObject {
     public:
@@ -17,6 +9,33 @@ struct GameObject {
         virtual void draw() = 0;
         virtual ~GameObject() = default;
 };
+
+struct Projectile : public GameObject{
+    public:
+        Projectile(Texture2D& sprite, Vector2 pos, Vector2 dim, Vector2 frame_dim, float speed, float angle):
+            sprite(sprite), position(pos), dim(dim), frame((Rectangle){0,0,frame_dim.x, frame_dim.y}), speed(speed), angle(angle){};
+        void update(){
+            const float dt = GetFrameTime();
+            float dx = speed * cos(angle);
+            float dy = speed * sin(angle);
+            position.x += dx * dt;
+            position.y += dy * dt;
+        };
+        void draw(){
+            Rectangle dest = {position.x, position.y, frame.width, frame.height};
+            Vector2 origin = {frame.width/2.0f, 6.5f};// 6.5 is the bulle minus the swoosh
+            DrawTexturePro(sprite, frame,dest,origin,(angle * RAD2DEG) + 90, WHITE);
+        };
+    private:
+    Texture2D& sprite;
+    Vector2 position;
+    Vector2 dim;
+    Vector2 frame_dim;
+    Rectangle frame;
+    float speed;
+    float angle;
+};
+
 
 struct WeaponCard : public GameObject {
     public:
@@ -61,8 +80,9 @@ uint64_t frame_counter = 0;
 
 struct Weapon : public GameObject {
     public:
-        Weapon(Texture2D& sprite_sheet, float width, float height, int fpu, int sprites, float x, float y):
+        Weapon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, float height, int fpu, int sprites, float x, float y):
             sprite_sheet(sprite_sheet),
+            proj_sprite(proj_sprite),
             sprites(sprites),
             animate(true),
             frame_width(width),
@@ -84,10 +104,11 @@ struct Weapon : public GameObject {
             DrawTextureRec(sprite_sheet, frame, position, WHITE);
         }
     private: 
-        uint64_t frame_counter = 0;
         Texture2D& sprite_sheet;
+        Texture2D& proj_sprite;
         Rectangle frame;
         Vector2 position;
+        uint64_t frame_counter = 0;
         int frame_width;
         int frame_height;
         int frames_per_update;
@@ -154,7 +175,8 @@ struct SCannon: public GameObject {
         bool animate;
 };
 
-
+std::vector<GameObject*> game_objects;
+std::vector<WeaponCard*> weapon_cards;
 
 enum MouseState {
     NORMAL,
@@ -165,8 +187,7 @@ enum MouseState {
 int main(void)
 {
     // Initialization
-    std::vector<GameObject*> game_objects;
-    std::vector<WeaponCard*> weapon_cards;
+    
     MouseState mouse_state = MouseState::NORMAL;
     WeaponCard* dragging_card;
     //--------------------------------------------------------------------------------------
@@ -180,15 +201,20 @@ int main(void)
 
     //--------------------------------------------------------------------------------------
     
-    Texture2D cannon_sprite_sheet = LoadTexture("assets/cannon_sprite_sheet.png");
-    Texture2D scannon_sprite_sheet = LoadTexture("assets/scannon_sprite_sheet.png");
+    Texture2D cannon_sprite_sheet       = LoadTexture("assets/cannon_sprite_sheet.png");
+    Texture2D scannon_sprite_sheet      = LoadTexture("assets/scannon_sprite_sheet.png");
+    Texture2D shell_projectile_sprite   = LoadTexture("assets/shell_projectile.png");
 
     //--------------------------------------------------------------------------------------
 
     SCannon scannon(scannon_sprite_sheet, 50.0f, 65.0f, 9, 3, 200, 200);
     game_objects.push_back(&scannon);
-    Weapon cannon(cannon_sprite_sheet, 50.0f, 65.0f, 13, 3, 200, 280);
+
+    Weapon cannon(cannon_sprite_sheet, shell_projectile_sprite, 50.0f, 65.0f, 13, 3, 200, 280);
     game_objects.push_back(&cannon);
+
+    Projectile shell(shell_projectile_sprite, {50,600}, {9,19}, {9,19}, 10.0, 90);
+    game_objects.push_back(&shell);
     
     //--------------------------------------------------------------------------------------
     WeaponCard scannon_card(scannon_sprite_sheet, 150, 90.0f, 120.0f, 28, 653);
