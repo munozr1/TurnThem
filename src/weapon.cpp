@@ -1,10 +1,11 @@
 #include "raylib.h"
 #include "weapon.h"
 
-WeaponCard::WeaponCard(Texture2D& sprite_sheet, float sheet_size, float width, float height, float x, float y):
+WeaponCard::WeaponCard(Texture2D& sprite_sheet, float sheet_size, float width, float height, float x, float y, int slot):
     position((Vector2){x, y}),
     frame_width(width),
     frame_height(height),
+    slot_id(slot),
     sprite_sheet(sprite_sheet),
     card_frame((Rectangle){150, 0, width, height}),
     silohett_frame((Rectangle){0, 0, 50, 65}){}
@@ -32,4 +33,11 @@ void WeaponCard::draw(){
     Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
     Rectangle frame = dragging ? silohett_frame : card_frame;
     DrawTextureRec(sprite_sheet, frame, position, tint);
+}
+
+int WeaponCard::slotId() {
+    return slot_id;
+}
+void WeaponCard::setSlotId(int id) {
+    slot_id = id;
 }

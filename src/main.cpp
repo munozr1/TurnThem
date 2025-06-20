@@ -30,7 +30,7 @@ struct WeaponCardSpriteInfo {
 
 std::vector<WeaponCardSpriteInfo> weapon_card_sprites;
 
-WeaponCard* GenerateWeaponCard(CardType type, Vector2 pos) {
+WeaponCard* GenerateWeaponCard(CardType type, Vector2 pos, int slot) {
     Texture2D* sprite;
 
     // Find the texture for the given type
@@ -42,11 +42,11 @@ WeaponCard* GenerateWeaponCard(CardType type, Vector2 pos) {
     }
     switch (type) {
         case CardType::SCannon:
-            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y);
+            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y, slot);
         case CardType::Cannon:
-            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y);
+            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y, slot);
         default:
-            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y);
+            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y, slot);
     }
 }
 
@@ -61,6 +61,7 @@ enum MouseState {
 std::vector<GameObject*> heap_objects;
 std::vector<GameObject*> stack_objects;
 std::vector<WeaponCard*> weapon_cards;
+WeaponCard* selected_card;
 
 struct Deck : public GameObject{
     public:
@@ -71,7 +72,7 @@ struct Deck : public GameObject{
                 for (int i = 0; i < 4; ++i) {
                     int idx = RandomInRange(0, weapon_card_sprites.size());
                     Vector2 pos = slot_positions[i];
-                    cards[i] = GenerateWeaponCard(weapon_card_sprites[idx].type, pos);
+                    cards[i] = GenerateWeaponCard(weapon_card_sprites[idx].type, pos, i);
                     weapon_cards.push_back(cards[i]);
                 }
             };
@@ -80,7 +81,7 @@ struct Deck : public GameObject{
                 if(cards[i] == nullptr){
                     int idx = RandomInRange(0, weapon_card_sprites.size());
                     Vector2 pos = slot_positions[i];
-                    cards[i] = GenerateWeaponCard(weapon_card_sprites[idx].type, pos);
+                    cards[i] = GenerateWeaponCard(weapon_card_sprites[idx].type, pos, i);
                 }
             }
         };
@@ -90,6 +91,21 @@ struct Deck : public GameObject{
                 if (card) card->draw();
             }
         }
+
+        bool isPointInside(Vector2 point){
+            return point.x >= position.x &&
+                point.x <= position.x + deck_frame.width &&
+                point.y >= position.y &&
+                point.y <= position.y + deck_frame.height;
+        }
+        
+        void resetCardPosition(int id){
+            if (id > 3 || id < 0) return;
+            Vector2 pos = slot_positions[id];
+            cards[id]->setxy(pos);
+        }
+
+
 
     private:
         Texture2D& deck_sprite;
@@ -110,7 +126,6 @@ int main(void)
     // Initialization
     
     MouseState mouse_state = MouseState::NORMAL;
-    WeaponCard* dragging_card;
     //--------------------------------------------------------------------------------------
 
     const int screenWidth = 520;
@@ -168,27 +183,33 @@ int main(void)
                         if (card->isPointInside(mouse_pos)){
                             mouse_state = MouseState::DRAGGING;
                             card->set_dragging(true);
-                            dragging_card = card;
+                            selected_card = card;
                             break;
                         }
                     }
                 }
                 break;
             case MouseState::DRAGGING:{
-                Vector2 mouse_pos = GetMousePosition();
-                dragging_card->setxy(mouse_pos);
-                if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)){
+                    Vector2 mouse_pos = GetMousePosition();
+                    selected_card->setxy(mouse_pos);
+                    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)){
+                        mouse_state = MouseState::DROP;
+                        selected_card->set_dragging(false);
+                    }
+                    break;
+                }
+            case MouseState::DROP:{
+                    /* TODO: handle dropping card */ 
+                    /* if dropped inside deck, reset original position
+                     * if dropped on play area, remove from weapon_cards array and add the weapon 
+                     * to the play area.
+                     */
+                    Vector2 mouse_pos = GetMousePosition();
+                    bool mouse_over_deck = deck.isPointInside(mouse_pos);
+                    if (mouse_over_deck) deck.resetCardPosition(selected_card->slotId());
                     mouse_state = MouseState::NORMAL;
-                    dragging_card->set_dragging(false);
+                    break;
                 }
-                break;
-                }
-            case MouseState::DROP:
-                /* TODO: handle dropping card */ 
-                /* if dropped inside deck, reset original position
-                 * if dropped on play area, remove from weapon_cards array and add the weapon 
-                 * to the play area.
-                 */
             default:
                 break;
         }
