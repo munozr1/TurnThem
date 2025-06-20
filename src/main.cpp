@@ -1,11 +1,55 @@
 #include "raylib.h"
 #include <vector>
+#include <random>
+#include "GameObject.h"
 #include "projectile.h"
 #include "weapon.h"
 //#include "cannon.h"
 //#include "scannon.h"
 
 void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
+int RandomInRange(int min, int max) {
+    static std::random_device rd;  // Non-deterministic seed
+    static std::mt19937 gen(rd()); // Mersenne Twister engine
+    std::uniform_int_distribution<> dist(min, max);
+    return dist(gen);
+}
+
+enum class CardType {
+    Cannon,
+    SCannon,
+    // Add more types here
+    COUNT // Always keep last to use for random generation
+};
+
+
+struct WeaponCardSpriteInfo {
+    CardType type;
+    Texture2D* texture;
+};
+
+std::vector<WeaponCardSpriteInfo> weapon_card_sprites;
+
+WeaponCard* GenerateWeaponCard(CardType type, Vector2 pos) {
+    Texture2D* sprite;
+
+    // Find the texture for the given type
+    for (auto& info : weapon_card_sprites) {
+        if (info.type == type) {
+            sprite = info.texture;
+            break;
+        }
+    }
+    switch (type) {
+        case CardType::SCannon:
+            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y);
+        case CardType::Cannon:
+            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y);
+        default:
+            return new WeaponCard(*sprite, 150, 90.0f, 120.0f, pos.x, pos.y);
+    }
+}
+
 
 uint64_t frame_counter = 0;
 enum MouseState {
@@ -17,6 +61,49 @@ enum MouseState {
 std::vector<GameObject*> heap_objects;
 std::vector<GameObject*> stack_objects;
 std::vector<WeaponCard*> weapon_cards;
+
+struct Deck : public GameObject{
+    public:
+        Deck(Texture2D& texture): cards({nullptr, nullptr, nullptr, nullptr}),
+            deck_sprite(texture),
+            deck_frame((Rectangle){0,0, 500, 150}),
+            position((Vector2){10.0f, 640.0f}){
+                for (int i = 0; i < 4; ++i) {
+                    int idx = RandomInRange(0, weapon_card_sprites.size());
+                    Vector2 pos = slot_positions[i];
+                    cards[i] = GenerateWeaponCard(weapon_card_sprites[idx].type, pos);
+                    weapon_cards.push_back(cards[i]);
+                }
+            };
+        void update() override{
+            for (int i = 0; i < 4; ++i) {
+                if(cards[i] == nullptr){
+                    int idx = RandomInRange(0, weapon_card_sprites.size());
+                    Vector2 pos = slot_positions[i];
+                    cards[i] = GenerateWeaponCard(weapon_card_sprites[idx].type, pos);
+                }
+            }
+        };
+        void draw() override {
+            DrawTextureRec(deck_sprite, deck_frame, position, WHITE);
+            for (auto* card : cards) {
+                if (card) card->draw();
+            }
+        }
+
+    private:
+        Texture2D& deck_sprite;
+        Rectangle deck_frame;
+        Vector2 position;
+        std::array<WeaponCard*, 4> cards;
+        std::array<Vector2, 4> slot_positions = {
+            Vector2{28, 653},
+            Vector2{153, 653},
+            Vector2{278, 653},
+            Vector2{403, 653}
+        };
+
+};
 
 int main(void)
 {
@@ -35,10 +122,13 @@ int main(void)
 
     //--------------------------------------------------------------------------------------
     
+
     Texture2D cannon_sprite_sheet       = LoadTexture("assets/cannon_sprite_sheet.png");
     Texture2D scannon_sprite_sheet      = LoadTexture("assets/scannon_sprite_sheet.png");
     Texture2D shell_projectile_sprite   = LoadTexture("assets/shell_projectile.png");
     Texture2D deck_sprite_sheet         = LoadTexture("assets/deck_sprite_sheet.png");
+    weapon_card_sprites.push_back({CardType::Cannon, &cannon_sprite_sheet});
+    weapon_card_sprites.push_back({CardType::SCannon, &scannon_sprite_sheet});
 
     //--------------------------------------------------------------------------------------
 
@@ -49,19 +139,20 @@ int main(void)
     stack_objects.push_back(&cannon);
     */
     
+    Deck deck(deck_sprite_sheet);
+    stack_objects.push_back(&deck);
     //--------------------------------------------------------------------------------------
-    WeaponCard scannon_card(scannon_sprite_sheet, 150, 90.0f, 120.0f, 28, 653);
+    /*WeaponCard scannon_card(scannon_sprite_sheet, 150, 90.0f, 120.0f, 28, 653);
     WeaponCard cannon_card(cannon_sprite_sheet, 150, 90.0f, 120.0f, 153, 653);
     stack_objects.push_back(&scannon_card);
     stack_objects.push_back(&cannon_card);
     weapon_cards.push_back(&scannon_card);
     weapon_cards.push_back(&cannon_card);
+    */
+
     //--------------------------------------------------------------------------------------
 
-    float deck_width = 500;
-    float deck_height = 150;
-    Rectangle deck_frame = {0, 0, deck_width, deck_height};
-    Vector2 deck_position = {10.0f, 640.0f};
+   
 
 
     // Main game loop
@@ -110,7 +201,6 @@ int main(void)
 
             //DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
             //DrawTextureRec(cannon_sprite_sheet, cannon_frame, position, WHITE);
-            DrawTextureRec(deck_sprite_sheet, deck_frame, deck_position, WHITE);
             for (auto * obj : stack_objects) {
                 obj->update();
                 obj->draw();
