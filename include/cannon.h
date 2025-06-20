@@ -14,6 +14,7 @@ struct Cannon : public GameObject {
         Texture2D& sprite_sheet;
         Texture2D& proj_sprite;
         Rectangle frame;
+        Rectangle silohett;
         Vector2 position;
         uint64_t frame_counter = 0;
         int frame_width;

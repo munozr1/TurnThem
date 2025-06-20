@@ -6,11 +6,12 @@ WeaponCard::WeaponCard(Texture2D& sprite_sheet, float sheet_size, float width, f
     frame_width(width),
     frame_height(height),
     sprite_sheet(sprite_sheet),
-    frame((Rectangle){150, 0, width, height}){}
+    card_frame((Rectangle){150, 0, width, height}),
+    silohett_frame((Rectangle){0, 0, 50, 65}){}
 
 void WeaponCard::setxy(Vector2 pos){
-    pos.x -= (float)frame_width / 2;
-    pos.y -= (float)frame_height/ 2;
+    pos.x -= silohett_frame.width/ 2.0f;
+    pos.y -= silohett_frame.height/ 2.0f;
     position = pos;
 }
 
@@ -29,5 +30,6 @@ void WeaponCard::update(){}
 
 void WeaponCard::draw(){
     Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
+    Rectangle frame = dragging ? silohett_frame : card_frame;
     DrawTextureRec(sprite_sheet, frame, position, tint);
 }

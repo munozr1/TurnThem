@@ -14,7 +14,8 @@ struct WeaponCard : public GameObject {
         void draw();
     private: 
         Texture2D& sprite_sheet;
-        Rectangle frame;
+        Rectangle card_frame;
+        Rectangle silohett_frame;
         Vector2 position;
         int frame_width;
         int frame_height;

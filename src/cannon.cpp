@@ -18,7 +18,6 @@ Cannon::Cannon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, flo
 
 void Cannon::update() {
     double current_time = GetTime();
-
     if (current_time - last_fire_time >= 0.5) {
         fire(proj_sprite, {position.x + (frame_width / 2.0f), position.y}, 800, -90);
         last_fire_time = current_time;
