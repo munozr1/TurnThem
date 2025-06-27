@@ -2,8 +2,10 @@
 #include "sprites.h"
 #include "weapon.h"
 
-WeaponCard::WeaponCard(Texture2D& sprite_sheet, CardData& data, SpriteDetails& sprite, SpriteDetails& silohett_details): 
+WeaponCard::WeaponCard(Texture2D& sprite_sheet, CardData data, SpriteDetails sprite, SpriteDetails silohett_details): 
     sprite_sheet(sprite_sheet),
+    dragging(false),
+    slot_id(-1),
     card_data(data),
     sprite_details(sprite),
     silohett_details(silohett_details){}
@@ -30,19 +32,24 @@ void WeaponCard::set_dragging(bool b){
 
 SpriteDetails& WeaponCard::getSilohett(){return silohett_details;}
 
-void WeaponCard::update(){}
-
-void WeaponCard::draw(){
-    Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
-    Rectangle source = dragging ? 
-        silohett_details.source_rectangle : 
-        sprite_details.source_rectangle;
-    DrawTextureRec(sprite_sheet, source, position, tint);
+Vector2 WeaponCard::getPosition() {
+    return position;
 }
+
+void WeaponCard::update(){}
 
 int WeaponCard::slotId() {
     return slot_id;
 }
 void WeaponCard::setSlotId(int id) {
     slot_id = id;
+}
+
+void WeaponCard::draw(){
+    Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
+    Rectangle source = dragging ?
+        silohett_details.source_rectangle :
+        sprite_details.source_rectangle;
+    // Then try to draw the texture
+    DrawTextureRec(sprite_sheet, source, position, tint);
 }
