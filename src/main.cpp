@@ -44,15 +44,15 @@ int main(void)
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     Atlas sprite_manager("assets/sprites_texture_file.png","assets/sprites_data_file.json");
     MouseState mouse_state = MouseState::NORMAL;
-    std::vector<GameObject> game_objects;
+    std::vector<GameObject*> game_objects;
 
     //--------------------------------------------------------------------------------------
     
     CardData cannon_data = sprite_manager.GetCard("cannon");
     SpriteDetails cannon_details = sprite_manager.GetSprite(cannon_data.card_image);
     SpriteDetails cannon_silohett_details = sprite_manager.GetSprite(cannon_data.silohett_image);
-    WeaponCard test_cannon_card(cannon_data, cannon_details, cannon_silohett_details);
-    game_objects.push_back(test_cannon_card);
+    WeaponCard test_cannon_card(sprite_manager.GetSpriteSheet(),cannon_data, cannon_details, cannon_silohett_details);
+    game_objects.push_back(&test_cannon_card);
 
 
     // Main game loop
@@ -89,9 +89,9 @@ int main(void)
         frame_counter++;
         BeginDrawing();
             ClearBackground(RAYWHITE);
-            for(auto& game_object : game_objects){
-                game_object.update();
-                game_object.draw();
+            for(auto* game_object : game_objects){
+                game_object->update();
+                game_object->draw();
             }
         EndDrawing();
         //----------------------------------------------------------------------------------

@@ -31,10 +31,17 @@ Atlas::Atlas(std::filesystem::path sprite_sheet_path, std::filesystem::path spri
     for (auto& [card_name, card_info] : sprite_data["cards"].items()) {
         CardData data;
         data.card_image = card_info["cardImage"];
-        data.silohett_image = card_info[data.animation_frames.at(0)];
+        
+        // First load the animation frames
         for (auto& frame_name : card_info["frames"]) {
             data.animation_frames.push_back(frame_name.get<std::string>());
         }
+        
+        // Then set silohett_image to the first frame (if frames exist)
+        if (!data.animation_frames.empty()) {
+            data.silohett_image = data.animation_frames[0];
+        }
+        
         card_data[card_name] = data;
     }
 }

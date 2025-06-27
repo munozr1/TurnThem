@@ -2,7 +2,8 @@
 #include "sprites.h"
 #include "weapon.h"
 
-WeaponCard::WeaponCard(CardData& data, SpriteDetails& sprite, SpriteDetails& silohett_details): 
+WeaponCard::WeaponCard(Texture2D& sprite_sheet, CardData& data, SpriteDetails& sprite, SpriteDetails& silohett_details): 
+    sprite_sheet(sprite_sheet),
     card_data(data),
     sprite_details(sprite),
     silohett_details(silohett_details){}
@@ -36,7 +37,7 @@ void WeaponCard::draw(){
     Rectangle source = dragging ? 
         silohett_details.source_rectangle : 
         sprite_details.source_rectangle;
-    DrawTextureRec(sprite_manager.GetSpriteSheet(), source, position, tint);
+    DrawTextureRec(sprite_sheet, source, position, tint);
 }
 
 int WeaponCard::slotId() {

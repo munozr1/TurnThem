@@ -5,11 +5,10 @@
 #include "GameObject.h"
 #include "sprites.h"
 
-extern Atlas sprite_manager;
 
 struct WeaponCard : public GameObject {
     public:
-        WeaponCard(CardData& data, SpriteDetails& sprite, SpriteDetails& silohett_details); 
+        WeaponCard(Texture2D& sprite_sheet, CardData& data, SpriteDetails& sprite, SpriteDetails& silohett_details); 
         void setxyDrag(Vector2 pos);
         void setxyDrop(Vector2 pos);
         bool isPointInside(Vector2 point);
@@ -20,6 +19,7 @@ struct WeaponCard : public GameObject {
         int slotId();
         void setSlotId(int id);
     private: 
+        Texture2D& sprite_sheet;
         CardData& card_data;
         SpriteDetails& sprite_details;
         SpriteDetails& silohett_details;
