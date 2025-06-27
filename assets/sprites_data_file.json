@@ -1,0 +1,58 @@
+{
+  "cards": {
+    "cannon": {
+      "cardImage": "cannon_card.png",
+      "frames": [
+        "cannon_frame_0.png",
+        "cannon_frame_1.png",
+        "cannon_frame_2.png"
+      ],
+      "projectile": "shell_projectile.png"
+    },
+    "scannon": {
+      "cardImage": "scannon_card.png",
+      "frames": [
+        "scannon_frame_0.png",
+        "scannon_frame_1.png",
+        "scannon_frame_2.png"
+      ],
+      "projectile": "shell_projectile.png"
+    }
+  },
+  "frames": {
+    "cannon_card.png": {
+      "frame": {"x":327,"y":1,"w":90,"h":120}
+    },
+    "cannon_frame_0.png": {
+      "frame": {"x":15,"y":1,"w":50,"h":65}
+    },
+    "cannon_frame_1.png": {
+      "frame": {"x":67,"y":1,"w":50,"h":55}
+    },
+    "cannon_frame_2.png": {
+      "frame": {"x":119,"y":1,"w":50,"h":45}
+    },
+    "scannon_card.png": {
+      "frame": {"x":419,"y":1,"w":90,"h":120}
+    },
+    "scannon_frame_0.png": {
+      "frame": {"x":171,"y":1,"w":50,"h":65}
+    },
+    "scannon_frame_1.png": {
+      "frame": {"x":223,"y":1,"w":50,"h":55}
+    },
+    "scannon_frame_2.png": {
+      "frame": {"x":275,"y":1,"w":50,"h":45}
+    },
+    "Deck.png": {
+      "frame": {"x":1,"y":123,"w":500,"h":150}
+    },
+    "shell_projectile.png": {
+      "frame": {"x":1,"y":1,"w":12,"h":20}
+    }
+  },
+  "meta": {
+    "image": "spritesheet.png",
+    "size": {"w":510,"h":274}
+  }
+}

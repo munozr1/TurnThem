@@ -3,26 +3,30 @@
 
 #include "raylib.h"
 #include "GameObject.h"
+#include "sprites.h"
+
+extern Atlas sprite_manager;
 
 struct WeaponCard : public GameObject {
     public:
-        WeaponCard(Texture2D& sprite_sheet, float sheet_size, float width, float height, float x, float y, int slot);
-        void setxy(Vector2 pos);
+        WeaponCard(CardData& data, SpriteDetails& sprite, SpriteDetails& silohett_details); 
+        void setxyDrag(Vector2 pos);
+        void setxyDrop(Vector2 pos);
         bool isPointInside(Vector2 point);
         void set_dragging(bool b);
         void update();
         void draw();
+        SpriteDetails& getSilohett();
         int slotId();
         void setSlotId(int id);
     private: 
-        Texture2D& sprite_sheet;
-        Rectangle card_frame;
-        Rectangle silohett_frame;
-        Vector2 position;
-        int frame_width;
-        int frame_height;
+        CardData& card_data;
+        SpriteDetails& sprite_details;
+        SpriteDetails& silohett_details;
+        bool dragging;
         int slot_id;
-        bool dragging = false;
+        Vector2 position;
+        
 };
 
 #endif

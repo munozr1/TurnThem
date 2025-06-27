@@ -1,8 +1,7 @@
 #include "raylib.h"
 #include "scannon.h"
-#include <math.h>
 
-extern void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
+//extern void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
 
 SCannon::SCannon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, float height, int fpu, int sprites, float x, float y):
     sprite_sheet(sprite_sheet),
@@ -37,7 +36,7 @@ void SCannon::update(){
             float barrel_length = 19.7f;
             Vector2 origin = {frame_width / 2.0f, 0};
             Vector2 tip = {position.x , position.y};
-            fire(proj_sprite, tip, 500, angle_deg - 90);
+            //fire(proj_sprite, tip, 500, angle_deg - 90);
         }
         frame.x = frame_width*(current_frame % sprites);
     }

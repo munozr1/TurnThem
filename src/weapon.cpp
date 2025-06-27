@@ -1,38 +1,42 @@
 #include "raylib.h"
+#include "sprites.h"
 #include "weapon.h"
 
-WeaponCard::WeaponCard(Texture2D& sprite_sheet, float sheet_size, float width, float height, float x, float y, int slot):
-    position((Vector2){x, y}),
-    frame_width(width),
-    frame_height(height),
-    slot_id(slot),
-    sprite_sheet(sprite_sheet),
-    card_frame((Rectangle){150, 0, width, height}),
-    silohett_frame((Rectangle){0, 0, 50, 65}){}
+WeaponCard::WeaponCard(CardData& data, SpriteDetails& sprite, SpriteDetails& silohett_details): 
+    card_data(data),
+    sprite_details(sprite),
+    silohett_details(silohett_details){}
 
-void WeaponCard::setxy(Vector2 pos){
-    pos.x -= silohett_frame.width/ 2.0f;
-    pos.y -= silohett_frame.height/ 2.0f;
+void WeaponCard::setxyDrag(Vector2 pos){
+    pos.x -= silohett_details.dim.x/ 2.0f;
+    pos.y -= silohett_details.dim.y/ 2.0f;
+    position = pos;
+}
+void WeaponCard::setxyDrop(Vector2 pos){
     position = pos;
 }
 
 bool WeaponCard::isPointInside(Vector2 point){
     return point.x >= position.x &&
-        point.x <= position.x + frame_width &&
+        point.x <= position.x + sprite_details.dim.x &&
         point.y >= position.y &&
-        point.y <= position.y + frame_height;
+        point.y <= position.y + sprite_details.dim.y;
 }
 
 void WeaponCard::set_dragging(bool b){
     dragging = b;
 };
 
+SpriteDetails& WeaponCard::getSilohett(){return silohett_details;}
+
 void WeaponCard::update(){}
 
 void WeaponCard::draw(){
     Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
-    Rectangle frame = dragging ? silohett_frame : card_frame;
-    DrawTextureRec(sprite_sheet, frame, position, tint);
+    Rectangle source = dragging ? 
+        silohett_details.source_rectangle : 
+        sprite_details.source_rectangle;
+    DrawTextureRec(sprite_manager.GetSpriteSheet(), source, position, tint);
 }
 
 int WeaponCard::slotId() {

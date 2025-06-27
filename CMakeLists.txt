@@ -5,6 +5,9 @@ project(TurnThem VERSION 1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Find nlohmann-json package
+find_package(nlohmann_json REQUIRED)
+
 # Find Raylib package
 find_package(raylib QUIET)
 if (NOT raylib_FOUND)
@@ -27,7 +30,7 @@ file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} raylib)
+target_link_libraries(${PROJECT_NAME} raylib nlohmann_json::nlohmann_json)
 
 # Copy assets to build directory
 file(COPY ${PROJECT_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})

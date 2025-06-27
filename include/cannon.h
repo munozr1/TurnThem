@@ -5,6 +5,7 @@
 #include "GameObject.h"
 #include  <cstdint>
 
+
 struct Cannon : public GameObject {
     public:
         Cannon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, float height, int fpu, int sprites, float x, float y);

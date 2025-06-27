@@ -1,7 +1,7 @@
 #include "raylib.h"
 #include "cannon.h"
 
-extern void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
+//extern void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
 
 Cannon::Cannon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, float height, int fpu, int sprites, float x, float y):
     sprite_sheet(sprite_sheet),
@@ -19,7 +19,7 @@ Cannon::Cannon(Texture2D& sprite_sheet, Texture2D& proj_sprite, float width, flo
 void Cannon::update() {
     double current_time = GetTime();
     if (current_time - last_fire_time >= 0.5) {
-        fire(proj_sprite, {position.x + (frame_width / 2.0f), position.y}, 800, -90);
+        //fire(proj_sprite, {position.x + (frame_width / 2.0f), position.y}, 800, -90);
         last_fire_time = current_time;
         animate = true;
         current_frame = 0;
