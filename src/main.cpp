@@ -150,7 +150,10 @@ int main(void)
                 if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                     Vector2 mouse_pos = GetMousePosition();
                     selected_card = deck->getSelectedCard(mouse_pos);
-                    if (selected_card != nullptr) mouse_state = MouseState::DRAGGING;
+                    if (selected_card != nullptr){ 
+                        mouse_state = MouseState::DRAGGING;
+                        selected_card->set_dragging(true);
+                    }
                 }
                 break;
             case MouseState::DRAGGING:{
@@ -167,7 +170,9 @@ int main(void)
                     mouse_state = MouseState::NORMAL;
                     if(deck->isPointInside(mouse_pos)){
                         deck->resetCardPosition(selected_card->slotId());
+                        selected_card->set_dragging(false);
                     }
+                    selected_card = nullptr;
                     break;
                 }
             default:
