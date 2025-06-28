@@ -1,10 +1,11 @@
+#include "weapon.h"
+#include "weapon_card.h"
 #include "raylib.h"
 #include <vector>
 #include <random>
-#include <iostream>
 #include "GameObject.h"
 #include "projectile.h"
-#include "weapon.h"
+#include "weapon_card.h"
 #include "sprites.h"
 enum class CardType {
     Cannon,
@@ -122,6 +123,8 @@ struct Deck : public GameObject{
 
 
 
+std::vector<GameObject*> game_objects;
+
 int main(void)
 {
     // Initialization
@@ -133,13 +136,17 @@ int main(void)
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
                                     //
     MouseState mouse_state = MouseState::NORMAL;
-    std::vector<GameObject*> game_objects;
     sprite_manager = new Atlas("assets/sprites_texture_file.png","assets/sprites_data_file.json");
 
     //--------------------------------------------------------------------------------------
     
     Deck* deck = new Deck(sprite_manager->GetSprite("Deck.png"));
     game_objects.push_back(deck);
+    auto cannon_data = sprite_manager->GetCard("cannon");
+    auto cannon_details = sprite_manager->GetSprite(cannon_data.silohett_image);
+    Vector2 pos = {200,200};
+    Weapon* cannon = new Weapon(cannon_details,cannon_data, pos);
+    game_objects.push_back(cannon);
 
         // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key

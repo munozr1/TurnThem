@@ -2,54 +2,51 @@
 #include "sprites.h"
 #include "weapon.h"
 
-WeaponCard::WeaponCard(Texture2D& sprite_sheet, CardData data, SpriteDetails sprite, SpriteDetails silohett_details): 
-    sprite_sheet(sprite_sheet),
-    dragging(false),
-    slot_id(-1),
+//extern void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
+Weapon::Weapon(SpriteDetails details, CardData data, Vector2 pos):
+    sprite_details(details),
     card_data(data),
-    sprite_details(sprite),
-    silohett_details(silohett_details){}
+    animate(true),
+    position(pos),
+    frames_per_update(10), //TODO: fpu should be in json file
+    last_fire_time(0.0),
+    current_frame(0){
+    //initialize frame to first animation frame
+    if (!card_data.animation_frames.empty()) {
+        auto first_frame_img = card_data.animation_frames.at(0);
+        auto first_frame_details = sprite_manager->GetSprite(first_frame_img);
+        frame = first_frame_details.source_rectangle;
+    }
+    };
 
-void WeaponCard::setxyDrag(Vector2 pos){
-    pos.x -= silohett_details.dim.x/ 2.0f;
-    pos.y -= silohett_details.dim.y/ 2.0f;
-    position = pos;
+void Weapon::update() {
+    if(card_data.animation_frames.empty()) return;
+    double current_time = GetTime();
+    if (current_time - last_fire_time >= 0.5) {
+        //fire(proj_sprite, {position.x + (frame_width / 2.0f), position.y}, 800, -90);
+        last_fire_time = current_time;
+        animate = true;
+        current_frame = 0;
+        frame_counter = 0;
+    }
+
+    if (animate) {
+        frame_counter++;
+        int frames = card_data.animation_frames.size();
+        if (frame_counter >= frames_per_update) {
+            frame_counter = 0;
+            current_frame++;
+            if (current_frame >= frames) {
+                animate = false;
+                current_frame = 0;
+            } //TODO move to next frame
+            auto next_frame_img = card_data.animation_frames.at(current_frame);
+            auto next_frame_details = sprite_manager->GetSprite(next_frame_img);
+            frame = next_frame_details.source_rectangle;
+        }
+    }
 }
-void WeaponCard::setxyDrop(Vector2 pos){
-    position = pos;
-}
 
-bool WeaponCard::isPointInside(Vector2 point){
-    return point.x >= position.x &&
-        point.x <= position.x + sprite_details.dim.x &&
-        point.y >= position.y &&
-        point.y <= position.y + sprite_details.dim.y;
-}
-
-void WeaponCard::set_dragging(bool b){
-    dragging = b;
-};
-
-SpriteDetails& WeaponCard::getSilohett(){return silohett_details;}
-
-Vector2 WeaponCard::getPosition() {
-    return position;
-}
-
-void WeaponCard::update(){}
-
-int WeaponCard::slotId() {
-    return slot_id;
-}
-void WeaponCard::setSlotId(int id) {
-    slot_id = id;
-}
-
-void WeaponCard::draw(){
-    Color tint = dragging ? (Color){255, 255, 255, 128} : WHITE;
-    Rectangle source = dragging ?
-        silohett_details.source_rectangle :
-        sprite_details.source_rectangle;
-    // Then try to draw the texture
-    DrawTextureRec(sprite_sheet, source, position, tint);
+void Weapon::draw(){
+    DrawTextureRec(sprite_manager->GetSpriteSheet(), frame, position, WHITE);
 }
