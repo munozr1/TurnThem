@@ -47,6 +47,6 @@ void Weapon::update() {
     }
 }
 
-void Weapon::draw(){
-    DrawTextureRec(sprite_manager->GetSpriteSheet(), frame, position, WHITE);
-}
+void Weapon::draw(){DrawTextureRec(sprite_manager->GetSpriteSheet(), frame, position, WHITE);}
+
+CardData Weapon::cardData(){return card_data;}

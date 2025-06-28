@@ -19,6 +19,7 @@ struct WeaponCard : public GameObject {
         Vector2 getPosition();
         int slotId();
         void setSlotId(int id);
+        CardData cardData();
     private: 
         Texture2D& sprite_sheet;
         CardData card_data;

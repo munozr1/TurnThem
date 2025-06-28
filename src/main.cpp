@@ -7,17 +7,9 @@
 #include "projectile.h"
 #include "weapon_card.h"
 #include "sprites.h"
-enum class CardType {
-    Cannon,
-    SCannon,
-    // Add more types here
-    COUNT // Always keep last to use for random generation
-};
-
-
 Atlas* sprite_manager = nullptr;
 void fire(Texture2D* sprite, Vector2 pos, float speed, float angle);
-void PlaceWeapon(CardType type, Vector2 pos);
+void PlaceWeapon(CardData data, Vector2 pos);
 int RandomInRange(int min, int max) {
     static std::random_device rd;  // Non-deterministic seed
     static std::mt19937 gen(rd()); // Mersenne Twister engine
@@ -104,6 +96,12 @@ struct Deck : public GameObject{
             auto pos = slot_positions[id];
             cards[id]->setxyDrop(pos);
         }
+        void removeCard(int slot_id) {
+            if (slot_id >= 0 && slot_id < 4) {
+                delete cards[slot_id];
+                cards[slot_id] = nullptr;
+            }
+        }
 
 
 
@@ -178,6 +176,9 @@ int main(void)
                     if(deck->isPointInside(mouse_pos)){
                         deck->resetCardPosition(selected_card->slotId());
                         selected_card->set_dragging(false);
+                    }else{
+                        PlaceWeapon(selected_card->cardData(), mouse_pos);
+                        deck->removeCard(selected_card->slotId());
                     }
                     selected_card = nullptr;
                     break;
@@ -207,4 +208,10 @@ int main(void)
     //--------------------------------------------------------------------------------------
 
     return 0;
+}
+
+void PlaceWeapon(CardData data, Vector2 pos){
+    auto details = sprite_manager->GetSprite(data.silohett_image);
+    auto new_weapon = new Weapon(details, data, pos);
+    game_objects.push_back(new_weapon);
 }

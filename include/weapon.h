@@ -13,6 +13,7 @@ struct Weapon: public GameObject {
         Weapon(SpriteDetails sprite_details, CardData data, Vector2 pos);
         void update();
         void draw();
+        CardData cardData();
     private: 
         CardData card_data;
         SpriteDetails sprite_details;
