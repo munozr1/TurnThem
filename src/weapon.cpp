@@ -2,7 +2,7 @@
 #include "sprites.h"
 #include "weapon.h"
 
-//extern void fire(Texture2D& sprite, Vector2 pos, float speed, float angle);
+extern void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle);
 Weapon::Weapon(SpriteDetails details, CardData data, Vector2 pos):
     sprite_details(details),
     card_data(data),
@@ -22,8 +22,10 @@ Weapon::Weapon(SpriteDetails details, CardData data, Vector2 pos):
 void Weapon::update() {
     if(card_data.animation_frames.empty()) return;
     double current_time = GetTime();
+    //TODO determin if this is a projectile weapon
     if (current_time - last_fire_time >= 0.5) {
-        //fire(proj_sprite, {position.x + (frame_width / 2.0f), position.y}, 800, -90);
+        SpriteDetails projectile_sprite_details = sprite_manager->GetSprite(card_data.projectile_image);
+        fire(projectile_sprite_details, {position.x + (frame.width / 2.0f), position.y}, 800, -90);
         last_fire_time = current_time;
         animate = true;
         current_frame = 0;

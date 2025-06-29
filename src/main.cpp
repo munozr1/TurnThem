@@ -8,7 +8,7 @@
 #include "weapon_card.h"
 #include "sprites.h"
 Atlas* sprite_manager = nullptr;
-void fire(Texture2D* sprite, Vector2 pos, float speed, float angle);
+void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle);
 void PlaceWeapon(CardData data, Vector2 pos);
 int RandomInRange(int min, int max) {
     static std::random_device rd;  // Non-deterministic seed
@@ -191,10 +191,27 @@ int main(void)
         frame_counter++;
         BeginDrawing();
             ClearBackground(RAYWHITE);
+            //update/draw
             for(auto* game_object : game_objects){
-                game_object->update();
-                game_object->draw();
+                if(game_object != nullptr) {
+                    game_object->update();
+                    game_object->draw();
+                }
             }
+
+            //remove projectiles
+            game_objects.erase(
+                std::remove_if(game_objects.begin(), game_objects.end(),
+                    [screenWidth, screenHeight](GameObject* obj) {
+                        auto proj = dynamic_cast<Projectile*>(obj);
+                        if(proj && proj->isOutOfBounds(screenWidth, screenHeight)){
+                            delete proj;
+                            return true;
+                        }
+                        return false;
+                    }),
+                game_objects.end()
+            );
         EndDrawing();
         //----------------------------------------------------------------------------------
     }
@@ -214,4 +231,9 @@ void PlaceWeapon(CardData data, Vector2 pos){
     auto details = sprite_manager->GetSprite(data.silohett_image);
     auto new_weapon = new Weapon(details, data, pos);
     game_objects.push_back(new_weapon);
+}
+
+void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle){
+    auto new_projectile = new Projectile(sprite, pos, speed, angle);
+    game_objects.push_back(new_projectile);
 }

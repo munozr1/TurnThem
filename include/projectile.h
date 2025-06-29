@@ -3,19 +3,18 @@
 
 #include "raylib.h"
 #include "GameObject.h"
+#include "sprites.h"
 
+extern Atlas* sprite_manager;
 struct Projectile : public GameObject{
     public:
-        Projectile(Texture2D& sprite, Vector2 pos, Vector2 frame_dim, float speed, float angle);
+        Projectile(SpriteDetails sprite_details, Vector2 pos, float speed, float angle);
         void update();
         void draw();       
         bool isOutOfBounds(int screenWidth, int screenHeight);
     private:
-        Texture2D& sprite;
+        SpriteDetails sprite_details;
         Vector2 position;
-        Vector2 dim;
-        Vector2 frame_dim;
-        Rectangle frame;
         float speed;
         float angle_deg;
 };

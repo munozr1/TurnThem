@@ -1,22 +1,24 @@
 {
   "cards": {
     "cannon": {
+      "type" : "projectile_weapon",
       "cardImage": "cannon_card.png",
       "frames": [
         "cannon_frame_0.png",
         "cannon_frame_1.png",
         "cannon_frame_2.png"
       ],
-      "projectile": "shell_projectile.png"
+      "projectileImage": "shell_projectile.png"
     },
     "scannon": {
+      "type" : "projectile_weapon",
       "cardImage": "scannon_card.png",
       "frames": [
         "scannon_frame_0.png",
         "scannon_frame_1.png",
         "scannon_frame_2.png"
       ],
-      "projectile": "shell_projectile.png"
+      "projectileImage": "shell_projectile.png"
     }
   },
   "frames": {

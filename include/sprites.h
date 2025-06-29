@@ -20,6 +20,7 @@ struct CardData {
     std::string card_image;
     std::vector<std::string> animation_frames;
     std::string silohett_image;
+    std::string projectile_image;
 };
 
 class Atlas {

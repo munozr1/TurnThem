@@ -42,6 +42,10 @@ Atlas::Atlas(std::filesystem::path sprite_sheet_path, std::filesystem::path spri
             data.silohett_image = data.animation_frames[0];
         }
         
+        std::string type = card_info["type"];
+        if(type == "projectile_weapon"){
+            data.projectile_image = card_info["projectileImage"];
+        }
         card_data[card_name] = data;
     }
 }

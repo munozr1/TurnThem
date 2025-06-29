@@ -7,6 +7,7 @@
 #include  <cstdint>
 
 extern Atlas* sprite_manager;
+extern void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle);
 
 struct Weapon: public GameObject {
     public:

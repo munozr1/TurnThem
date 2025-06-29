@@ -1,9 +1,11 @@
 #include "raylib.h"
+#include "sprites.h"
+#include "weapon.h"
 #include "projectile.h"
 #include <math.h>
 
-Projectile::Projectile(Texture2D& sprite, Vector2 pos, Vector2 frame_dim, float speed, float angle):
-    sprite(sprite), position(pos), frame((Rectangle){0,0,frame_dim.x, frame_dim.y}), speed(speed), angle_deg(angle){};
+Projectile::Projectile(SpriteDetails sprite_details, Vector2 pos, float speed, float angle):
+    sprite_details(sprite_details), position(pos), speed(speed), angle_deg(angle){};
 
 void Projectile::update(){
     const float dt = GetFrameTime();
@@ -15,9 +17,9 @@ void Projectile::update(){
 }
 
 void Projectile::draw(){
-    const Rectangle dest = {position.x, position.y, frame.width, frame.height};
-    const Vector2 origin = {frame.width/2.0f, 6.5f};// 6.5 is the bulle minus the swoosh
-    DrawTexturePro(sprite, frame,dest,origin, angle_deg + 90, WHITE);
+    const Rectangle dest = {position.x, position.y, sprite_details.source_rectangle.width, sprite_details.source_rectangle.height};
+    const Vector2 origin = {sprite_details.source_rectangle.width/2.0f, 6.5f};// 6.5 is the bulle minus the swoosh
+    DrawTexturePro(sprite_manager->GetSpriteSheet(), sprite_details.source_rectangle,dest,origin, angle_deg + 90, WHITE);
 }
 
 /* used to check if projectile is out of screen bounds */
