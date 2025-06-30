@@ -8,7 +8,8 @@
         "cannon_frame_1.png",
         "cannon_frame_2.png"
       ],
-      "projectileImage": "shell_projectile.png"
+      "projectileImage": "shell_projectile.png",
+      "weapon" : "cannon"
     },
     "scannon": {
       "type" : "projectile_weapon",
@@ -18,7 +19,8 @@
         "scannon_frame_1.png",
         "scannon_frame_2.png"
       ],
-      "projectileImage": "shell_projectile.png"
+      "projectileImage": "shell_projectile.png",
+      "weapon" : "scanon"
     }
   },
   "frames": {

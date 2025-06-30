@@ -46,8 +46,18 @@ Atlas::Atlas(std::filesystem::path sprite_sheet_path, std::filesystem::path spri
         if(type == "projectile_weapon"){
             data.projectile_image = card_info["projectileImage"];
         }
+        
+        // Load weapon type
+        if (card_info.contains("weapon")) {
+            data.weapon = card_info["weapon"];
+        }
+        
         card_data[card_name] = data;
     }
+}
+
+Atlas::~Atlas() {
+    UnloadTexture(sprite_sheet);
 }
 
 Texture2D& Atlas::GetSpriteSheet() {

@@ -22,7 +22,7 @@ void Projectile::draw(){
     DrawTexturePro(sprite_manager->GetSpriteSheet(), sprite_details.source_rectangle,dest,origin, angle_deg + 90, WHITE);
 }
 
-/* used to check if projectile is out of screen bounds */
+/* check if projectile is out of screen bounds */
 bool Projectile::isOutOfBounds(int screenWidth, int screenHeight) {
     return position.x < -50 || position.x > screenWidth + 50 || 
            position.y < -50 || position.y > screenHeight + 50;

@@ -21,11 +21,13 @@ struct CardData {
     std::vector<std::string> animation_frames;
     std::string silohett_image;
     std::string projectile_image;
+    std::string weapon;
 };
 
 class Atlas {
 public:
     Atlas(std::filesystem::path sprite_sheet_path, std::filesystem::path sprite_data_file_path);
+    ~Atlas();
     
     Texture2D& GetSpriteSheet();
     SpriteDetails GetSprite(const std::string& sprite_name);
