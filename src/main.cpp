@@ -1,21 +1,61 @@
+#include <ostream>
+#include <unordered_map>
+#include <vector>
+#include <random>
+#include <iostream>
+#include "raylib.h"
 #include "weapon.h"
 #include "cannon.h"
 #include "scannon.h"
 #include "weapon_card.h"
-#include "raylib.h"
-#include <vector>
-#include <random>
 #include "GameObject.h"
 #include "projectile.h"
 #include "weapon_card.h"
 #include "sprites.h"
 #include "deck.h"
+enum MouseState {
+    NORMAL,
+    DRAGGING,
+    DROP
+};
+enum BlockSide {
+    white,
+    black 
+};
+enum BlockTint {
+    none,
+    green,
+    red
+};
+struct Block{
+    Rectangle rectangle;
+    BlockSide side;
+    BlockTint tint; // if the user is hovering a card over the block (block is selected and used when user drops card)
+    friend std::ostream& operator<<(std::ostream& os, const Block& obj);
+};
+std::ostream& operator<<(std::ostream& os, const Block& obj) {
+    os << "Block(" << obj.rectangle.x<< ", " << obj.rectangle.y<< ")";
+    return os;
+}
+struct Coordinate{
+    int x;
+    int y;
+    
+    bool operator==(const Coordinate& other) const {
+        return x == other.x && y == other.y;
+    }
+};
+
+
 Atlas* sprite_manager = nullptr;
 void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle);
 void PlaceWeapon(CardData data, Vector2 pos);
+void InitGrid();
+void DrawGrid();
+Coordinate NormalizeCoordinate(Vector2 coord);
 int RandomInRange(int min, int max) {
-    static std::random_device rd;  // Non-deterministic seed
-    static std::mt19937 gen(rd()); // Mersenne Twister engine
+    static std::random_device rd; 
+    static std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(min, max);
     return dist(gen);
 }
@@ -29,16 +69,27 @@ WeaponCard* GenerateWeaponCard(std::string name){
     return card;
 }
 uint64_t frame_counter = 0;
-enum MouseState {
-    NORMAL,
-    DRAGGING,
-    DROP
-};
-
-WeaponCard* selected_card = nullptr;
+// Hash function for Coordinate to use in unordered_map
+namespace std {
+    template <>
+    struct hash<Coordinate> {
+        size_t operator()(const Coordinate& coord) const {
+            return hash<int>()(coord.x) ^ (hash<int>()(coord.y) << 1);
+        }
+    };
+}
+WeaponCard* selected_card   = nullptr;
+Block* selected_block  = nullptr;
 std::vector<std::string> weapon_card_names = {"cannon","scannon"};
-
 std::vector<GameObject*> game_objects;
+std::vector<Block> blocks;
+std::unordered_map<Coordinate, Block*> grid_map;
+
+// Grid constants
+const int GRID_COLS = 13;
+const int GRID_ROWS = 20;
+const int CELL_SIZE = 40;
+
 
 int main(void)
 {
@@ -48,8 +99,8 @@ int main(void)
 
     std::vector<Projectile> projectiles;
     InitWindow(screenWidth, screenHeight, "TurnThem");
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-                                    //
+    InitGrid();
+    SetTargetFPS(60);
     MouseState mouse_state = MouseState::NORMAL;
     sprite_manager = new Atlas("assets/sprites_texture_file.png","assets/sprites_data_file.json");
 
@@ -78,8 +129,16 @@ int main(void)
                         mouse_state = MouseState::NORMAL;
                         break;
                     }
-                    Vector2 mouse_pos = GetMousePosition();
+                    
+                    auto mouse_pos = GetMousePosition();
                     selected_card->setxyDrag(mouse_pos);
+                    auto normalized_mouse_pos = NormalizeCoordinate(mouse_pos);
+                    
+                    // Safe lookup with ternary operator
+                    auto it = grid_map.find(normalized_mouse_pos);
+                    selected_block = it->second;
+                    if (selected_block != nullptr)std::cout << "Hovering " << *selected_block << std::endl;
+                    
                     if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)){
                         mouse_state = MouseState::DROP;
                         selected_card->set_dragging(false);
@@ -91,6 +150,7 @@ int main(void)
                         mouse_state = MouseState::NORMAL;
                         break;
                     }
+                    if (selected_block != nullptr) selected_block->tint = BlockTint::none;
                     Vector2 mouse_pos = GetMousePosition();
                     mouse_state = MouseState::NORMAL;
                     if(deck->isPointInside(mouse_pos)){
@@ -101,7 +161,8 @@ int main(void)
                         deck->removeCard(selected_card->slotId());
                         // selected_card is now deleted by removeCard, don't use it
                     }
-                    selected_card = nullptr;
+                    selected_card  = nullptr;
+                    selected_block = nullptr;
                     break;
                 }
             default:
@@ -112,13 +173,17 @@ int main(void)
         frame_counter++;
         BeginDrawing();
             ClearBackground(RAYWHITE);
-            //update/draw
+            
+            DrawGrid();
+            //update/draw game objects first
             for(auto* game_object : game_objects){
                 if(game_object != nullptr) {
                     game_object->update();
                     game_object->draw();
                 }
             }
+            
+            // Draw the grid on top so tint is visible
 
             //remove projectiles
             auto it = std::remove_if(game_objects.begin(), game_objects.end(),
@@ -166,4 +231,67 @@ void PlaceWeapon(CardData data, Vector2 pos){
 void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle){
     auto new_projectile = new Projectile(sprite, pos, speed, angle);
     game_objects.push_back(new_projectile);
+}
+
+void InitGrid() {
+    blocks.clear();
+    grid_map.clear();
+    
+    // Reserve capacity to prevent pointer invalidation during push_back
+    blocks.reserve(GRID_ROWS * GRID_COLS);
+    
+    for (int row = 0; row < GRID_ROWS; row++) {
+        for (int col = 0; col < GRID_COLS; col++) {
+            Block block;
+            block.rectangle = {
+                (float)(col * CELL_SIZE),
+                (float)(row * CELL_SIZE),
+                (float)CELL_SIZE,
+                (float)CELL_SIZE
+            };
+            block.side = (row >= GRID_ROWS / 2) ? BlockSide::white : BlockSide::black;
+            block.tint = BlockTint::none;
+            blocks.push_back(block);
+
+            Coordinate coord = {col, row};
+            grid_map[coord] = &blocks.back();
+        }
+    }
+}
+
+Coordinate NormalizeCoordinate(Vector2 coord) {
+    // Convert pixel coordinates to grid coordinates
+    int gridX = (int)(coord.x / CELL_SIZE);
+    int gridY = (int)(coord.y / CELL_SIZE);
+    
+    // Clamp to grid boundaries
+    gridX = (gridX < 0) ? 0 : (gridX >= GRID_COLS) ? GRID_COLS - 1 : gridX;
+    gridY = (gridY < 0) ? 0 : (gridY >= GRID_ROWS) ? GRID_ROWS - 1 : gridY;
+    
+    return {gridX, gridY};
+}
+
+void DrawGrid() {
+    for (const auto& block : blocks) {
+        Color cellColor = (block.side == BlockSide::white) ? 
+            Color{240, 240, 240, 255} : Color{60, 60, 60, 255};
+        
+        if (block.tint != BlockTint::none) {
+            std::cout << "has tint" << std::endl;
+            Color cellColor = block.tint == BlockTint::green ?
+                Color{0, 255, 0, 200}:
+                Color{255, 0, 0, 200};
+        }
+        DrawRectangleRec(block.rectangle, cellColor);
+        DrawRectangleLinesEx(block.rectangle, 1.0f, GRAY);
+        /*
+        // add tint overlay
+        if (block.tint != BlockTint::none) {
+            Color tintColor = block.tint == BlockTint::green ?
+                Color{0, 255, 0, 200}:
+                Color{255, 0, 0, 200};
+            DrawRectangleRec(block.rectangle, tintColor);
+        }
+        */
+    }
 }
