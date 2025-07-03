@@ -27,16 +27,21 @@ enum BlockTint {
     green,
     red
 };
+
 struct Block{
     Rectangle rectangle;
     BlockSide side;
     BlockTint tint; // if the user is hovering a card over the block (block is selected and used when user drops card)
+    Vector2 getPos(){
+        return Vector2{rectangle.x, rectangle.y};
+    }
     friend std::ostream& operator<<(std::ostream& os, const Block& obj);
 };
 std::ostream& operator<<(std::ostream& os, const Block& obj) {
-    os << "Block(" << obj.rectangle.x<< ", " << obj.rectangle.y<< ")";
+    os << "Block(" << obj.rectangle.x<< ", " << obj.rectangle.y<< ") Tint: " << obj.tint;
     return os;
 }
+
 struct Coordinate{
     int x;
     int y;
@@ -129,19 +134,19 @@ int main(void)
                         mouse_state = MouseState::NORMAL;
                         break;
                     }
+
+                    if(selected_block != nullptr) selected_block->tint = BlockTint::none;
                     
                     auto mouse_pos = GetMousePosition();
                     selected_card->setxyDrag(mouse_pos);
                     auto normalized_mouse_pos = NormalizeCoordinate(mouse_pos);
-                    
-                    // Safe lookup with ternary operator
+
                     auto it = grid_map.find(normalized_mouse_pos);
                     selected_block = it->second;
-                    if (selected_block != nullptr)std::cout << "Hovering " << *selected_block << std::endl;
+                    if (selected_block != nullptr) selected_block->tint = BlockTint::green;
                     
                     if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)){
                         mouse_state = MouseState::DROP;
-                        selected_card->set_dragging(false);
                     }
                     break;
                 }
@@ -150,19 +155,21 @@ int main(void)
                         mouse_state = MouseState::NORMAL;
                         break;
                     }
+
                     if (selected_block != nullptr) selected_block->tint = BlockTint::none;
+                    selected_card->set_dragging(false);
                     Vector2 mouse_pos = GetMousePosition();
-                    mouse_state = MouseState::NORMAL;
+
                     if(deck->isPointInside(mouse_pos)){
                         deck->resetCardPosition(selected_card->slotId());
-                        selected_card->set_dragging(false);
                     }else{
-                        PlaceWeapon(selected_card->cardData(), mouse_pos);
+                        auto pos = selected_block->getPos();
+                        PlaceWeapon(selected_card->cardData(), pos);
                         deck->removeCard(selected_card->slotId());
-                        // selected_card is now deleted by removeCard, don't use it
                     }
                     selected_card  = nullptr;
                     selected_block = nullptr;
+                    mouse_state = MouseState::NORMAL;
                     break;
                 }
             default:
@@ -277,21 +284,11 @@ void DrawGrid() {
             Color{240, 240, 240, 255} : Color{60, 60, 60, 255};
         
         if (block.tint != BlockTint::none) {
-            std::cout << "has tint" << std::endl;
-            Color cellColor = block.tint == BlockTint::green ?
+            cellColor = block.tint == BlockTint::green ?
                 Color{0, 255, 0, 200}:
                 Color{255, 0, 0, 200};
         }
         DrawRectangleRec(block.rectangle, cellColor);
         DrawRectangleLinesEx(block.rectangle, 1.0f, GRAY);
-        /*
-        // add tint overlay
-        if (block.tint != BlockTint::none) {
-            Color tintColor = block.tint == BlockTint::green ?
-                Color{0, 255, 0, 200}:
-                Color{255, 0, 0, 200};
-            DrawRectangleRec(block.rectangle, tintColor);
-        }
-        */
     }
 }

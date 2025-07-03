@@ -26,7 +26,7 @@ void Cannon::update() {
     //TODO determin if this is a projectile weapon
     if (current_time - last_fire_time >= 0.5) {
         SpriteDetails projectile_sprite_details = sprite_manager->GetSprite(card_data.projectile_image);
-        fire(projectile_sprite_details, {position.x + (frame.width / 2.0f), position.y}, 800, -90);
+        fire(projectile_sprite_details, {position.x , position.y}, 800, -90);
         last_fire_time = current_time;
         animate = true;
         current_frame = 0;
@@ -50,9 +50,19 @@ void Cannon::update() {
     }
 }
 
+/*
 void Cannon::draw(){
-    DrawTextureRec(sprite_manager->GetSpriteSheet(), frame, position, WHITE);
+    auto dest = frame;
+    DrawTextureRec(sprite_manager->GetSpriteSheet(), dest, position, WHITE);
 }
+*/
+void Cannon::draw() {
+    Rectangle dest = {position.x, position.y, frame.width, frame.height};
+    Vector2 origin = {frame.width/2.0f, frame.height/2.0f};
+    DrawTexturePro(sprite_manager->GetSpriteSheet(), frame, dest, origin, 0, WHITE);
+}
+
+
 
 CardData Cannon::cardData(){
     return card_data;
