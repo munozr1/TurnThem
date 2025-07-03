@@ -8,6 +8,7 @@
 #include "projectile.h"
 #include "common.h"
 #include "mouse_handler.h"
+#include "HomeScreen.h"
 
 // global variable definitions
 const int GRID_COLS = 13;
@@ -46,15 +47,12 @@ WeaponCard* GenerateWeaponCard(std::string name){
     return card;
 }
 
-int main(void)
-{
+void RunGameLoop() {
     const int screenWidth = 520;
     const int screenHeight = 800;
 
     std::vector<Projectile> projectiles;
-    InitWindow(screenWidth, screenHeight, "TurnThem");
     InitGrid();
-    SetTargetFPS(60);
     MouseState mouse_state = MouseState::NORMAL;
     sprite_manager = new Atlas("assets/sprites_texture_file.png","assets/sprites_data_file.json");
 
@@ -99,8 +97,25 @@ int main(void)
         delete game_object;
     }
     delete sprite_manager;
-    CloseWindow();
+}
 
+int main(void)
+{
+    const int screenWidth = 520;
+    const int screenHeight = 800;
+
+    InitWindow(screenWidth, screenHeight, "TurnThem");
+    SetTargetFPS(60);
+    
+    // Show home screen first
+    HomeScreen homeScreen;
+    homeScreen.RunHomeScreen();
+    
+    // After home screen ends (match found), run the main game
+    printf("Starting main game loop...\n");
+    RunGameLoop();
+
+    CloseWindow();
     return 0;
 }
 
