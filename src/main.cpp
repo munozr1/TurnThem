@@ -33,9 +33,11 @@ struct Block{
     BlockSide side;
     BlockTint tint; // if the user is hovering a card over the block (block is selected and used when user drops card)
     Vector2 getPos(){
-        return Vector2{rectangle.x, rectangle.y};
+        return Vector2{rectangle.x + rectangle.width/2, rectangle.y + rectangle.height/2};
     }
     friend std::ostream& operator<<(std::ostream& os, const Block& obj);
+    bool occupied;    // weapon placed here
+    bool is_padding;  // clearance around weapon
 };
 std::ostream& operator<<(std::ostream& os, const Block& obj) {
     os << "Block(" << obj.rectangle.x<< ", " << obj.rectangle.y<< ") Tint: " << obj.tint;
@@ -58,6 +60,7 @@ void PlaceWeapon(CardData data, Vector2 pos);
 void InitGrid();
 void DrawGrid();
 Coordinate NormalizeCoordinate(Vector2 coord);
+bool IsValidWeaponPosition(Vector2 desired_pos);
 int RandomInRange(int min, int max) {
     static std::random_device rd; 
     static std::mt19937 gen(rd());
@@ -143,7 +146,14 @@ int main(void)
 
                     auto it = grid_map.find(normalized_mouse_pos);
                     selected_block = it->second;
-                    if (selected_block != nullptr) selected_block->tint = BlockTint::green;
+                    if (selected_block != nullptr) {
+                        // Check if position is valid and set appropriate tint
+                        if (IsValidWeaponPosition(mouse_pos)) {
+                            selected_block->tint = BlockTint::green;
+                        } else {
+                            selected_block->tint = BlockTint::red;
+                        }
+                    }
                     
                     if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)){
                         mouse_state = MouseState::DROP;
@@ -162,10 +172,14 @@ int main(void)
 
                     if(deck->isPointInside(mouse_pos)){
                         deck->resetCardPosition(selected_card->slotId());
-                    }else{
+                    } else if (selected_block != nullptr && IsValidWeaponPosition(mouse_pos)) {
+                        // Only place weapon if position is valid
                         auto pos = selected_block->getPos();
                         PlaceWeapon(selected_card->cardData(), pos);
                         deck->removeCard(selected_card->slotId());
+                    } else {
+                        // Invalid position, return card to deck
+                        deck->resetCardPosition(selected_card->slotId());
                     }
                     selected_card  = nullptr;
                     selected_block = nullptr;
@@ -222,10 +236,42 @@ int main(void)
 void PlaceWeapon(CardData data, Vector2 pos){
     auto details = sprite_manager->GetSprite(data.silohett_image);
     
+    Coordinate center_coord = NormalizeCoordinate(pos);
+    
+    // mark center as occupied
+    auto center_it = grid_map.find(center_coord);
+    if (center_it != grid_map.end()) {
+        center_it->second->occupied = true;
+    }
+    
+    // surrounding directions
+    int directions[8][2] = {
+        {-1, -1}, {0, -1}, {1, -1},
+        {-1,  0},          {1,  0},
+        {-1,  1}, {0,  1}, {1,  1}
+    };
+    
+    // mark surrounding as padding
+    for (int i = 0; i < 8; i++) {
+        Coordinate padding_coord = {
+            center_coord.x + directions[i][0],
+            center_coord.y + directions[i][1]
+        };
+        
+        if (padding_coord.x >= 0 && padding_coord.x < GRID_COLS && 
+            padding_coord.y >= 0 && padding_coord.y < GRID_ROWS) {
+            
+            auto it = grid_map.find(padding_coord);
+            if (it != grid_map.end()) {
+                it->second->is_padding = true;
+            }
+        }
+    }
+    
     if (data.weapon == "cannon") {
         auto new_cannon = new Cannon(details, data, pos);
         game_objects.push_back(new_cannon);
-    } else if (data.weapon == "scanon") {  // Note: matches the typo in JSON
+    } else if (data.weapon == "scanon") {
         auto new_scannon = new SCannon(data, pos);
         game_objects.push_back(new_scannon);
     } else {
@@ -258,6 +304,8 @@ void InitGrid() {
             };
             block.side = (row >= GRID_ROWS / 2) ? BlockSide::white : BlockSide::black;
             block.tint = BlockTint::none;
+            block.occupied = false;
+            block.is_padding = false;
             blocks.push_back(block);
 
             Coordinate coord = {col, row};
@@ -291,4 +339,15 @@ void DrawGrid() {
         DrawRectangleRec(block.rectangle, cellColor);
         DrawRectangleLinesEx(block.rectangle, 1.0f, GRAY);
     }
+}
+
+bool IsValidWeaponPosition(Vector2 desired_pos){
+    Coordinate center_coord = NormalizeCoordinate(desired_pos);
+    
+    auto center_it = grid_map.find(center_coord);
+    if (center_it == grid_map.end() || center_it->second->occupied || center_it->second->is_padding) {
+        return false;
+    }
+    
+    return true;
 }
