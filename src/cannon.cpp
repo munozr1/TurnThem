@@ -2,13 +2,14 @@
 #include "sprites.h"
 #include "cannon.h"
 
-extern void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle);
+extern void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle, BlockSide side);
 
-Cannon::Cannon(SpriteDetails details, CardData data, Vector2 pos):
+Cannon::Cannon(SpriteDetails details, CardData data, Vector2 pos, BlockSide side):
     sprite_details(details),
     card_data(data),
     animate(true),
     position(pos),
+    side(side),
     frames_per_update(10), //TODO: fpu should be in json file
     last_fire_time(0.0),
     current_frame(0){
@@ -26,7 +27,7 @@ void Cannon::update() {
     //TODO determin if this is a projectile weapon
     if (current_time - last_fire_time >= 0.5) {
         SpriteDetails projectile_sprite_details = sprite_manager->GetSprite(card_data.projectile_image);
-        fire(projectile_sprite_details, {position.x , position.y}, 800, -90);
+        fire(projectile_sprite_details, {position.x , position.y}, 800, -90, side);
         last_fire_time = current_time;
         animate = true;
         current_frame = 0;

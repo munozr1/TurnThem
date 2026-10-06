@@ -20,6 +20,15 @@ if (NOT raylib_FOUND)
     FetchContent_MakeAvailable(raylib)
 endif()
 
+# Add ENet for networking
+include(FetchContent)
+FetchContent_Declare(
+    enet
+    GIT_REPOSITORY https://github.com/lsalzman/enet.git
+    GIT_TAG v1.3.17
+)
+FetchContent_MakeAvailable(enet)
+
 # Include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -30,7 +39,7 @@ file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} raylib nlohmann_json::nlohmann_json)
+target_link_libraries(${PROJECT_NAME} raylib nlohmann_json::nlohmann_json enet)
 
 # Copy assets to build directory
 file(COPY ${PROJECT_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})

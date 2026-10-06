@@ -58,7 +58,7 @@ void HandleMouseInput(MouseState& mouse_state, Deck* deck) {
                 } else if (selected_block != nullptr && IsValidWeaponPosition(mouse_pos)) {
                     // only place weapon if position is valid
                     auto pos = selected_block->getPos();
-                    PlaceWeapon(selected_card->cardData(), pos);
+                    PlaceWeapon(selected_card->cardData(), pos, player_side);
                     deck->removeCard(selected_card->slotId());
                 } else {
                     // invalid position, return card to deck

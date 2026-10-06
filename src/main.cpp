@@ -9,7 +9,6 @@
 #include "common.h"
 #include "mouse_handler.h"
 #include "HomeScreen.h"
-
 // global variable definitions
 const int GRID_COLS = 13;
 const int GRID_ROWS = 20;
@@ -23,6 +22,7 @@ std::vector<GameObject*> game_objects;
 std::vector<Block> blocks;
 std::unordered_map<Coordinate, Block*> grid_map;
 uint64_t frame_counter = 0;
+BlockSide player_side = BlockSide::white; // local player owns the bottom half, where the deck is
 
 // block ostream operator
 std::ostream& operator<<(std::ostream& os, const Block& obj) {
@@ -48,10 +48,6 @@ WeaponCard* GenerateWeaponCard(std::string name){
 }
 
 void RunGameLoop() {
-    const int screenWidth = 520;
-    const int screenHeight = 800;
-
-    std::vector<Projectile> projectiles;
     InitGrid();
     MouseState mouse_state = MouseState::NORMAL;
     sprite_manager = new Atlas("assets/sprites_texture_file.png","assets/sprites_data_file.json");
@@ -65,30 +61,35 @@ void RunGameLoop() {
         HandleMouseInput(mouse_state, deck);
 
         frame_counter++;
+
+        // update everything before drawing, so tiles converted this frame show this frame.
+        // Indexed, not range-for: update() can fire() into game_objects, and a reallocation
+        // would leave a range-for iterator dangling. Projectiles fired during this pass start
+        // moving next frame, so they're drawn at the muzzle and not moved by time before they existed.
+        const size_t object_count = game_objects.size();
+        for (size_t i = 0; i < object_count; i++) {
+            if (game_objects[i] != nullptr) game_objects[i]->update();
+        }
+
+        // remove dead objects (projectiles that hit a tile or left the screen)
+        auto it = std::remove_if(game_objects.begin(), game_objects.end(),
+            [](GameObject* obj) {
+                if (obj == nullptr) return true;
+                if (obj->isDead()) {
+                    delete obj;
+                    return true;
+                }
+                return false;
+            });
+        game_objects.erase(it, game_objects.end());
+
         BeginDrawing();
             ClearBackground(RAYWHITE);
-            
-            DrawGrid();
-            // update/draw game objects first
-            for(auto* game_object : game_objects){
-                if(game_object != nullptr) {
-                    game_object->update();
-                    game_object->draw();
-                }
-            }
 
-            // remove projectiles
-            auto it = std::remove_if(game_objects.begin(), game_objects.end(),
-                [screenWidth, screenHeight](GameObject* obj) {
-                    if (obj == nullptr) return true;
-                    auto proj = dynamic_cast<Projectile*>(obj);
-                    if(proj && proj->isOutOfBounds(screenWidth, screenHeight)){
-                        delete proj;
-                        return true;
-                    }
-                    return false;
-                });
-            game_objects.erase(it, game_objects.end());
+            DrawGrid();
+            for (auto* game_object : game_objects) {
+                game_object->draw();
+            }
         EndDrawing();
     }
 
@@ -119,7 +120,7 @@ int main(void)
     return 0;
 }
 
-void PlaceWeapon(CardData data, Vector2 pos){
+void PlaceWeapon(CardData data, Vector2 pos, BlockSide side){
     auto details = sprite_manager->GetSprite(data.silohett_image);
     
     Coordinate center_coord = NormalizeCoordinate(pos);
@@ -155,19 +156,19 @@ void PlaceWeapon(CardData data, Vector2 pos){
     }
     
     if (data.weapon == "cannon") {
-        auto new_cannon = new Cannon(details, data, pos);
+        auto new_cannon = new Cannon(details, data, pos, side);
         game_objects.push_back(new_cannon);
     } else if (data.weapon == "scanon") {
-        auto new_scannon = new SCannon(data, pos);
+        auto new_scannon = new SCannon(data, pos, side);
         game_objects.push_back(new_scannon);
     } else {
-        auto new_weapon = new Weapon(details, data, pos);
+        auto new_weapon = new Weapon(details, data, pos, side);
         game_objects.push_back(new_weapon);
     }
 }
 
-void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle){
-    auto new_projectile = new Projectile(sprite, pos, speed, angle);
+void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle, BlockSide side){
+    auto new_projectile = new Projectile(sprite, pos, speed, angle, side);
     game_objects.push_back(new_projectile);
 }
 

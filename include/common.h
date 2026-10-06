@@ -71,10 +71,11 @@ extern std::vector<GameObject*> game_objects;
 extern std::vector<Block> blocks;
 extern std::unordered_map<Coordinate, Block*> grid_map;
 extern uint64_t frame_counter;
+extern BlockSide player_side;
 
 // function declarations
-void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle);
-void PlaceWeapon(CardData data, Vector2 pos);
+void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle, BlockSide side);
+void PlaceWeapon(CardData data, Vector2 pos, BlockSide side);
 void InitGrid();
 void DrawGrid();
 Coordinate NormalizeCoordinate(Vector2 coord);

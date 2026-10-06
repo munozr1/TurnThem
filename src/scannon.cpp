@@ -3,12 +3,13 @@
 #include "scannon.h"
 #include <math.h>
 
-extern void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle);
+extern void fire(SpriteDetails sprite, Vector2 pos, float speed, float angle, BlockSide side);
 
-SCannon::SCannon(CardData data, Vector2 pos):
+SCannon::SCannon(CardData data, Vector2 pos, BlockSide side):
     card_data(data),
     animate(false),
     position(pos),
+    side(side),
     frames_per_update(10), // TODO: fpu should be in json file
     current_frame(0),
     last_fire_time(0.0),
@@ -86,7 +87,7 @@ void SCannon::update() {
                             position.y - barrel_length * cos(rad)
                         };
                         
-                        fire(projectile_sprite_details, tip, 500, angle_deg - 90);
+                        fire(projectile_sprite_details, tip, 500, angle_deg - 90, side);
                     }
                     
                     current_frame = 0;
