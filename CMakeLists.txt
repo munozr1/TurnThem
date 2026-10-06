@@ -1,27 +1,27 @@
-cmake_minimum_required(VERSION 3.10)
-project(TurnThem VERSION 1.0)
+cmake_minimum_required(VERSION 3.16)
+project(TurnThem VERSION 1.0 LANGUAGES C CXX)
 
-# Set C++ standard to C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Find nlohmann-json package
-find_package(nlohmann_json REQUIRED)
-
-# Find Raylib package
-find_package(raylib QUIET)
-if (NOT raylib_FOUND)
-    include(FetchContent)
-    FetchContent_Declare(
-        raylib
-        GIT_REPOSITORY https://github.com/raysan5/raylib.git
-        GIT_TAG 4.5.0
-    )
-    FetchContent_MakeAvailable(raylib)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
 endif()
 
-# Add ENet for networking
+option(TURNTHEM_BUILD_CLIENT "Build the raylib game client (off for a headless server box)" ON)
+option(TURNTHEM_BUILD_TESTS "Build the unit tests" ON)
+option(TURNTHEM_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+if(TURNTHEM_SANITIZE)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
+# ENet (and raylib's fallback) declare cmake_minimum_required < 3.5, which CMake 4 rejects
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 include(FetchContent)
+
+# ENet for networking
 FetchContent_Declare(
     enet
     GIT_REPOSITORY https://github.com/lsalzman/enet.git
@@ -29,17 +29,48 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(enet)
 
-# Include directories
-include_directories(${PROJECT_SOURCE_DIR}/include)
+# Game client
+if(TURNTHEM_BUILD_CLIENT)
+    find_package(nlohmann_json REQUIRED)
 
-# Add source files
-file(GLOB_RECURSE SOURCES "src/*.cpp")
+    find_package(raylib QUIET)
+    if (NOT raylib_FOUND)
+        FetchContent_Declare(
+            raylib
+            GIT_REPOSITORY https://github.com/raysan5/raylib.git
+            GIT_TAG 5.5
+        )
+        FetchContent_MakeAvailable(raylib)
+    endif()
 
-# Create executable
-add_executable(${PROJECT_NAME} ${SOURCES})
+    add_executable(TurnThem
+        src/main.cpp
+        src/HomeScreen.cpp
+        src/cannon.cpp
+        src/collision.cpp
+        src/deck.cpp
+        src/mouse_handler.cpp
+        src/projectile.cpp
+        src/scannon.cpp
+        src/sprites.cpp
+        src/weapon.cpp
+        src/weapon_card.cpp
+    )
+    target_include_directories(TurnThem PRIVATE ${PROJECT_SOURCE_DIR}/include)
+    target_link_libraries(TurnThem PRIVATE raylib nlohmann_json::nlohmann_json)
 
-# Link libraries
-target_link_libraries(${PROJECT_NAME} raylib nlohmann_json::nlohmann_json enet)
+    # assets are loaded relative to the working directory, so keep a copy next to the binary
+    add_custom_command(TARGET TurnThem POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${PROJECT_SOURCE_DIR}/assets $<TARGET_FILE_DIR:TurnThem>/assets)
+endif()
 
-# Copy assets to build directory
-file(COPY ${PROJECT_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+# Tests
+if(TURNTHEM_BUILD_TESTS)
+    enable_testing()
+    add_executable(turnthem_tests
+        tests/main.cpp
+    )
+    target_include_directories(turnthem_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/third_party)
+    add_test(NAME turnthem_tests COMMAND turnthem_tests)
+endif()
