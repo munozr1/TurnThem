@@ -107,3 +107,24 @@ TEST_CASE("playback starts behind the first tick") {
     CHECK(clock.started());
     CHECK(clock.playback() == doctest::Approx(-6));
 }
+
+TEST_CASE("when server time shifts for good, playback rebuilds its buffer in about a second") {
+    // the server stalls 0.4 s at t=5 and carries on without catching up, so
+    // every later tick arrives 0.4 s later than the old ones predicted
+    auto arrivals = Steady(0.05, 0, 900);
+    for (auto& a : arrivals)
+        if (a.tick >= 300) a.at += 0.4;
+    PlaybackClock clock(6);
+    Run run(clock, arrivals, 14);
+    double sum = 0;
+    int n = 0;
+    for (size_t i = 0; i < run.lag.size(); i++) {
+        if (run.times[i] > 7.4 && run.times[i] < 8.4) { // 2-3 s after the shift
+            sum += run.lag[i];
+            n++;
+        }
+    }
+    // the buffer is back near the 6-tick delay; without the rebase it stays near 0
+    // (playback pinned to the newest tick) until the stale sample expires at ~8.4 s
+    CHECK(sum / n > 4.0); // ~4.6 with the rebase, ~0.6 without
+}

@@ -7,6 +7,7 @@ namespace tt {
 void PlaybackClock::Reset() {
     window_.clear();
     max_offset_ = 0;
+    low_since_ = -1;
     last_now_ = 0;
     pb_ = 0;
     latest_ = 0;
@@ -21,6 +22,21 @@ void PlaybackClock::OnTick(uint32_t tick, double now_s) {
     while (!window_.empty() && window_.back().offset <= offset) window_.pop_back();
     window_.push_back({now_s, offset});
     max_offset_ = window_.front().offset;
+
+    // Every arrival later than the buffer allows, for a while: server time itself
+    // has shifted (it skipped a stall, or latency went up), so the old fast samples
+    // are stale. Drop them rather than play with an empty buffer until they expire.
+    // A one-off late burst doesn't trigger this: on-time packets reset it.
+    if (offset < max_offset_ - delay_) {
+        if (low_since_ < 0) low_since_ = now_s;
+    } else {
+        low_since_ = -1;
+    }
+    if (low_since_ >= 0 && now_s - low_since_ > kRebaseSeconds) {
+        while (window_.size() > 1 && window_.front().at < low_since_) window_.pop_front();
+        max_offset_ = window_.front().offset;
+        low_since_ = -1;
+    }
 }
 
 void PlaybackClock::Update(double now_s) {

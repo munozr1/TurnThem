@@ -18,6 +18,7 @@ public:
     static constexpr double kWindowSeconds = 3.0; // how long an arrival counts toward the estimate
     static constexpr double kSnapTicks = 20.0;    // further behind than this: jump instead of catching up
     static constexpr double kMaxRateChange = 0.25;
+    static constexpr double kRebaseSeconds = 0.5;  // consistently late this long: server time moved
 
     explicit PlaybackClock(double delay_ticks = 6.0) : delay_(delay_ticks) {}
 
@@ -39,6 +40,7 @@ private:
     double delay_;
     std::deque<Sample> window_; // sliding max: offsets strictly decreasing front to back
     double max_offset_ = 0;
+    double low_since_ = -1; // when arrivals started being consistently late, or -1
     double last_now_ = 0;
     double pb_ = 0;
     uint32_t latest_ = 0;

@@ -54,7 +54,12 @@ void MatchView::OnMessage(const ServerMsg& msg, double now_s) {
         auto ghost = std::find_if(ghosts_.begin(), ghosts_.end(), [&](const Ghost& g) { return g.req_id == result->req_id; });
         if (ghost == ghosts_.end()) return;
         if (result->err == PlaceError::Ok) {
-            ghost->weapon_id = result->weapon_id; // shown until the weapon itself is played back
+            // its TICK comes first on the wire, so the weapon is either played back
+            // already (a late result after a stall) or still buffered
+            const bool shown = std::any_of(weapons_.begin(), weapons_.end(),
+                                           [&](const WeaponState& w) { return w.id == result->weapon_id; });
+            if (shown) ghosts_.erase(ghost);
+            else ghost->weapon_id = result->weapon_id; // removed when the weapon is played back
         } else {
             hand_[ghost->slot].pending = false; // the card comes back
             ghosts_.erase(ghost);
@@ -153,12 +158,16 @@ std::optional<MsgMatchEnd> MatchView::result() const {
     return result_;
 }
 
+// playback starts a few ticks below 0 (the buffer filling); count from 0 so the
+// countdown doesn't open on "4" and the HUD timer doesn't read 3:01
 float MatchView::SecondsLeft() const {
-    return (float)std::max(0.0, (end_tick_ - clock_.playback()) / kTickRate);
+    const double pb = std::max(0.0, clock_.playback());
+    return (float)std::max(0.0, (end_tick_ - pb) / kTickRate);
 }
 
 float MatchView::CountdownLeft() const {
-    return (float)std::max(0.0, (start_tick_ - clock_.playback()) / kTickRate);
+    const double pb = std::max(0.0, clock_.playback());
+    return (float)std::max(0.0, (start_tick_ - pb) / kTickRate);
 }
 
 std::optional<PlaceError> MatchView::TakeRejection() {
