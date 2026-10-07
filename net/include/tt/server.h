@@ -10,8 +10,9 @@ namespace tt {
 
 struct ServerOptions {
     uint16_t port = kDefaultPort; // 0 picks a free port (tests)
-    size_t max_peers = 256;
+    size_t max_peers = 256;       // players beyond this are told the server is full
     MatchConfig match_config;     // seed is replaced per match
+    bool log = true;              // one line per match start/end (and kicks) on stdout
 };
 
 // The matchmaking + authoritative game server: pairs players first-come
