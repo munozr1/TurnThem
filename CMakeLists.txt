@@ -44,6 +44,12 @@ add_library(turnthem_core STATIC
     core/src/collision.cpp
     core/src/weapons.cpp
     core/src/match.cpp
+    core/src/protocol.cpp
+    core/src/match_host.cpp
+    core/src/playback_clock.cpp
+    core/src/match_view.cpp
+    core/src/bot.cpp
+    core/src/loopback_link.cpp
 )
 target_include_directories(turnthem_core PUBLIC ${PROJECT_SOURCE_DIR}/core/include)
 turnthem_warnings(turnthem_core)
@@ -93,6 +99,9 @@ if(TURNTHEM_BUILD_TESTS)
         tests/test_collision.cpp
         tests/test_weapons.cpp
         tests/test_match.cpp
+        tests/test_protocol.cpp
+        tests/test_clock.cpp
+        tests/test_view.cpp
     )
     target_include_directories(turnthem_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/third_party)
     target_link_libraries(turnthem_tests PRIVATE turnthem_core)
