@@ -80,11 +80,15 @@ void MatchScreen::Update(double now_s, tt::Link& link) {
 
     hover_ = false;
     if (mouse.x >= 0 && mouse.x < kScreenW && mouse.y >= 0 && mouse.y < kHudY) {
-        const Vector2 world = GetScreenToWorld2D(mouse, camera_);
-        if (tt::CellAt({world.x, world.y}, hover_col_, hover_row_)) {
-            hover_ = true;
-            hover_valid_ = view_.CheckLocal(hover_col_, hover_row_) == tt::PlaceError::Ok;
+        // the screen cell, turned around for black (the camera rotates the board 180 degrees)
+        hover_col_ = (int)(mouse.x / tt::kCell);
+        hover_row_ = (int)(mouse.y / tt::kCell);
+        if (view_.side() == tt::Side::Black) {
+            hover_col_ = tt::kCols - 1 - hover_col_;
+            hover_row_ = tt::kRows - 1 - hover_row_;
         }
+        hover_ = true;
+        hover_valid_ = view_.CheckLocal(hover_col_, hover_row_) == tt::PlaceError::Ok;
     }
 
     // released (checking "not down" also catches a release that happened between frames)

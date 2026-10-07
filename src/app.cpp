@@ -3,9 +3,15 @@
 
 App::App(const AppOptions& options)
     : options_(options),
+      frame_(LoadRenderTexture(kScreenW, kScreenH)),
       atlas_("assets/sprites_texture_file.png", "assets/sprites_data_file.json"),
       sprites_(atlas_) {
+    SetTextureFilter(frame_.texture, TEXTURE_FILTER_BILINEAR); // smooth when the window is scaled down
     home_.SetFooter(TextFormat("Server: %s:%d", options_.server.host.c_str(), options_.server.port));
+}
+
+App::~App() {
+    UnloadRenderTexture(frame_);
 }
 
 void App::StartOnline() {
@@ -65,6 +71,9 @@ void App::Run() {
     SetExitKey(KEY_NULL); // Esc leaves a match instead of quitting the game
     while (!WindowShouldClose()) {
         const double now = GetTime();
+        // everything below works in layout coordinates; the window may be smaller
+        const float scale = (float)kScreenW / GetScreenWidth();
+        SetMouseScale(scale, scale);
         PumpLink(now);
 
         if (IsKeyPressed(KEY_ESCAPE)) {
@@ -89,10 +98,17 @@ void App::Run() {
             }
         }
 
-        BeginDrawing();
+        BeginTextureMode(frame_);
         ClearBackground(RAYWHITE);
         if (match_) match_->Draw();
         else home_.Draw();
+        EndTextureMode();
+
+        BeginDrawing();
+        ClearBackground(BLACK);
+        // render textures are stored upside down, hence the negative height
+        DrawTexturePro(frame_.texture, {0, 0, (float)kScreenW, (float)-kScreenH},
+                       {0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()}, {0, 0}, 0, WHITE);
         EndDrawing();
     }
     // closing the window mid-match drops the connection, which the server treats as leaving

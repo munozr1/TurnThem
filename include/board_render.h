@@ -1,16 +1,9 @@
 #pragma once
 #include <array>
 #include "raylib.h"
+#include "layout.h"
 #include "sprites.h"
 #include "tt/match_view.h"
-
-// screen layout: the board on top, a HUD strip, then the deck
-constexpr int kScreenW = tt::kBoardW;          // 520
-constexpr int kHudY = tt::kBoardH;             // 800
-constexpr int kHudH = 40;
-constexpr int kDeckY = kHudY + kHudH;          // 840
-constexpr int kDeckH = 150;
-constexpr int kScreenH = kDeckY + kDeckH;      // 990
 
 struct WeaponSprites {
     std::array<Rectangle, tt::kAnimFrames> frames; // animation frames; frames[0] is also the silhouette

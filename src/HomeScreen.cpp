@@ -1,4 +1,5 @@
 #include "HomeScreen.h"
+#include "layout.h"
 #include <string>
 
 HomeScreen::HomeScreen() {
@@ -51,7 +52,7 @@ void HomeScreen::SetStatus(HomeStatus new_status) {
 // buttons stack below the middle of the screen: 0 = top, 1 = below it
 Rectangle HomeScreen::ButtonRect(int index) const {
     const float width = 220.0f, height = 60.0f;
-    return {(GetScreenWidth() - width) / 2.0f, GetScreenHeight() / 2.0f + 40.0f + index * 80.0f, width, height};
+    return {(kScreenW - width) / 2.0f, kScreenH / 2.0f + 40.0f + index * 80.0f, width, height};
 }
 
 void HomeScreen::DrawRoundedButton(Rectangle rect, float roundness, Color color, const char* text, Font font, Color text_color) const {
@@ -108,8 +109,8 @@ void HomeScreen::Draw() const {
     const char* title = "Turn Them";
     Vector2 title_size = MeasureTextEx(title_font, title, 72, 1);
     Vector2 title_pos = {
-        (GetScreenWidth() - title_size.x) / 2.0f,
-        GetScreenHeight() / 2.0f - 150.0f
+        (kScreenW - title_size.x) / 2.0f,
+        kScreenH / 2.0f - 150.0f
     };
     DrawTextEx(title_font, title, title_pos, 72, 1, title_color);
 
@@ -117,9 +118,12 @@ void HomeScreen::Draw() const {
         DrawButton(0, "Find Match");
         DrawButton(1, "Practice");
         if (!error_message.empty()) {
-            const Vector2 size = MeasureTextEx(button_font, error_message.c_str(), 20, 2);
+            // long hostnames: shrink the text rather than clip it at the window edges
+            float size = 20.0f;
+            while (size > 10.0f && MeasureTextEx(button_font, error_message.c_str(), size, 2).x > kScreenW - 32.0f) size -= 1.0f;
+            const Vector2 extent = MeasureTextEx(button_font, error_message.c_str(), size, 2);
             DrawTextEx(button_font, error_message.c_str(),
-                       {(GetScreenWidth() - size.x) / 2.0f, ButtonRect(1).y + 90.0f}, 20, 2, Color{255, 220, 220, 255});
+                       {(kScreenW - extent.x) / 2.0f, ButtonRect(1).y + 90.0f}, size, 2, Color{255, 220, 220, 255});
         }
     } else {
         // Draw finding match text with animated dots
@@ -129,13 +133,13 @@ void HomeScreen::Draw() const {
         }
         // measure without dots so the text doesn't jump around
         const float width = MeasureTextEx(button_font, status == HomeStatus::Connecting ? "Connecting" : "Finding Match", 32, 2).x;
-        DrawTextEx(button_font, finding_text.c_str(), {(GetScreenWidth() - width) / 2.0f, ButtonRect(0).y + 14.0f}, 32, 2, finding_text_color);
+        DrawTextEx(button_font, finding_text.c_str(), {(kScreenW - width) / 2.0f, ButtonRect(0).y + 14.0f}, 32, 2, finding_text_color);
         DrawButton(1, "Cancel");
     }
 
     if (!footer.empty()) {
         const Vector2 size = MeasureTextEx(button_font, footer.c_str(), 16, 2);
-        DrawTextEx(button_font, footer.c_str(), {(GetScreenWidth() - size.x) / 2.0f, GetScreenHeight() - 40.0f}, 16, 2,
+        DrawTextEx(button_font, footer.c_str(), {(kScreenW - size.x) / 2.0f, kScreenH - 40.0f}, 16, 2,
                    Color{220, 230, 240, 255});
     }
 }

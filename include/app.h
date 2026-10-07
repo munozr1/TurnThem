@@ -22,6 +22,9 @@ struct AppOptions {
 class App {
 public:
     explicit App(const AppOptions& options);
+    ~App();
+    App(const App&) = delete;
+    App& operator=(const App&) = delete;
     void Run();
 
 private:
@@ -31,6 +34,7 @@ private:
     void PumpLink(double now);
 
     AppOptions options_;
+    RenderTexture2D frame_; // the kScreenW x kScreenH layout, scaled to the window
     Atlas atlas_;
     GameSprites sprites_;
     HomeScreen home_;
