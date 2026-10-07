@@ -1,83 +1,37 @@
-#include "raylib.h"
-#include "sprites.h"
 #include "deck.h"
 
-Deck::Deck(SpriteDetails deck_sprite_details): 
-    cards({nullptr, nullptr, nullptr, nullptr}),
-    deck_sprite_details(deck_sprite_details),
-    deck_frame((Rectangle){0, 0, 500, 150}),
-    position((Vector2){10.0f, 640.0f}),
-    slot_positions({
-        Vector2{28, 653},
-        Vector2{153, 653},
-        Vector2{278, 653},
-        Vector2{403, 653}
-    }) {
-    for (int i = 0; i < 4; ++i) {
-        auto idx = RandomInRange(0, weapon_card_names.size() - 1);
-        auto pos = slot_positions[i];
-        auto new_card = GenerateWeaponCard(weapon_card_names[idx]);
-        
-        new_card->setSlotId(i);
-        new_card->setxyDrop(pos);
-        cards[i] = new_card;
+Deck::Deck(const GameSprites& sprites, float y) : sprites_(sprites), position_{10.0f, y} {}
+
+Rectangle Deck::SlotRect(int slot) const {
+    const Rectangle card = sprites_.weapon(tt::WeaponType::Cannon).card;
+    return {position_.x + 18 + slot * 125.0f, position_.y + 13, card.width, card.height};
+}
+
+bool Deck::Contains(Vector2 point) const {
+    const Rectangle deck = sprites_.deck();
+    return CheckCollisionPointRec(point, {position_.x, position_.y, deck.width, deck.height});
+}
+
+int Deck::SlotAt(Vector2 point, const Hand& hand) const {
+    for (int i = 0; i < tt::kHandSize; i++) {
+        if (hand[i].type && !hand[i].pending && CheckCollisionPointRec(point, SlotRect(i))) return i;
+    }
+    return -1;
+}
+
+void Deck::Draw(const Hand& hand, int dragging) const {
+    DrawTextureRec(sprites_.texture(), sprites_.deck(), position_, WHITE);
+    for (int i = 0; i < tt::kHandSize; i++) {
+        if (!hand[i].type || i == dragging) continue;
+        const Rectangle slot = SlotRect(i);
+        // a spent card stays dimmed until the server deals its replacement
+        const Color tint = hand[i].pending ? Color{255, 255, 255, 90} : WHITE;
+        DrawTextureRec(sprites_.texture(), sprites_.weapon(*hand[i].type).card, {slot.x, slot.y}, tint);
     }
 }
 
-Deck::~Deck() {
-    for (auto* card : cards) {
-        delete card;
-    }
+void Deck::DrawDragged(tt::WeaponType type, Vector2 mouse) const {
+    const Rectangle frame = sprites_.weapon(type).frames[0];
+    const Vector2 pos = {mouse.x - frame.width / 2.0f, mouse.y - frame.height / 2.0f};
+    DrawTextureRec(sprites_.texture(), frame, pos, Color{255, 255, 255, 128});
 }
-
-void Deck::update() {
-    for (int i = 0; i < 4; ++i) {
-        if (cards[i] == nullptr) {
-            auto idx = RandomInRange(0, weapon_card_names.size() - 1);
-            auto pos = slot_positions[i];
-            auto new_card = GenerateWeaponCard(weapon_card_names[idx]);
-            new_card->setSlotId(i);
-            new_card->setxyDrop(pos);
-            cards[i] = new_card;
-        }
-    }
-}
-
-void Deck::draw() {
-    DrawTextureRec(sprite_manager->GetSpriteSheet(), deck_sprite_details.source_rectangle, position, WHITE);
-    for (int i = 0; i < 4; ++i) {
-        if (cards[i]) {
-            cards[i]->draw();
-        }
-    }
-}
-
-bool Deck::isPointInside(Vector2 point) {
-    return point.x >= position.x &&
-           point.x <= position.x + deck_frame.width &&
-           point.y >= position.y &&
-           point.y <= position.y + deck_frame.height;
-}
-
-WeaponCard* Deck::getSelectedCard(Vector2 mouse_pos) {
-    for (auto* card : cards) {
-        if (card->isPointInside(mouse_pos)) return card;
-    }
-    return nullptr;
-}
-
-void Deck::resetCardPosition(int id) {
-    if (id > 3 || id < 0) return;
-    auto pos = slot_positions[id];
-    cards[id]->setxyDrop(pos);
-}
-
-void Deck::removeCard(int slot_id) {
-    if (slot_id >= 0 && slot_id < 4) {
-        delete cards[slot_id];
-        cards[slot_id] = nullptr;
-    }
-}
-
-
-

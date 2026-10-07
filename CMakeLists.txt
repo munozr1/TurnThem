@@ -71,19 +71,16 @@ if(TURNTHEM_BUILD_CLIENT)
 
     add_executable(TurnThem
         src/main.cpp
+        src/app.cpp
         src/HomeScreen.cpp
-        src/cannon.cpp
-        src/collision.cpp
+        src/match_screen.cpp
+        src/board_render.cpp
         src/deck.cpp
-        src/mouse_handler.cpp
-        src/projectile.cpp
-        src/scannon.cpp
         src/sprites.cpp
-        src/weapon.cpp
-        src/weapon_card.cpp
     )
     target_include_directories(TurnThem PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_link_libraries(TurnThem PRIVATE raylib nlohmann_json::nlohmann_json)
+    target_link_libraries(TurnThem PRIVATE turnthem_net raylib nlohmann_json::nlohmann_json)
+    turnthem_warnings(TurnThem)
 
     # assets are loaded relative to the working directory, so keep a copy next to the binary
     add_custom_command(TARGET TurnThem POST_BUILD
