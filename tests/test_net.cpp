@@ -171,6 +171,19 @@ TEST_CASE("server addresses parse as host or host:port") {
     CHECK(port == 5);
 }
 
+TEST_CASE("an unreachable server is reported after the connect timeout, not ENet's 15 s") {
+    // nothing listens on the discard port, so the connect is never answered
+    auto link = MakeEnetLink({"127.0.0.1", 9});
+    double now = 0;
+    while (link->status() == LinkStatus::Connecting && now < 20) {
+        link->Pump(now);
+        now += 0.1;
+    }
+    CHECK(link->status() == LinkStatus::Closed);
+    CHECK(now < 5.5);
+    CHECK(link->close_reason().find("couldn't reach") != std::string::npos);
+}
+
 TEST_CASE("two bots play a whole match over ENet and agree with the server") {
     Server server(TestServer());
     std::string error;

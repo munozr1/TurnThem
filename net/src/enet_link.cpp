@@ -14,6 +14,10 @@ namespace {
 std::mutex g_net_mutex;
 int g_net_refs = 0;
 
+// ENet's own timeout only gives up on an unanswered connect after ~15 s; a
+// player staring at "Connecting..." deserves an answer sooner
+constexpr double kConnectTimeoutS = 5.0;
+
 } // namespace
 
 bool NetInit() {
@@ -96,6 +100,7 @@ private:
     std::deque<Inbound> down_;
     std::deque<ServerMsg> inbox_;
     double now_ = 0;
+    double connect_started_ = -1; // time of the first Pump
     double last_up_ = 0, last_down_ = 0;
     std::mt19937_64 rng_{std::random_device{}()};
 };
@@ -199,6 +204,7 @@ void EnetLink::CloseNow(const std::string& reason) {
 
 void EnetLink::Pump(double now_s) {
     now_ = now_s;
+    if (connect_started_ < 0) connect_started_ = now_s;
 
     ENetEvent event;
     while (host_ && peer_ && enet_host_service(host_, &event, 0) > 0) {
@@ -225,6 +231,11 @@ void EnetLink::Pump(double now_s) {
             else reason = DisconnectText(event.data);
             ScheduleClose(reason);
         }
+    }
+
+    if (status_ == LinkStatus::Connecting && !close_pending_ && now_ - connect_started_ >= kConnectTimeoutS) {
+        CloseNow("couldn't reach the server at " + Where());
+        return;
     }
 
     while (!down_.empty() && down_.front().at <= now_) {
