@@ -29,6 +29,25 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(enet)
 
+function(turnthem_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endfunction()
+
+# Simulation, protocol and client-side match state: plain C++, no raylib or enet,
+# so the server builds on a headless box
+add_library(turnthem_core STATIC
+    core/src/grid.cpp
+    core/src/collision.cpp
+    core/src/weapons.cpp
+    core/src/match.cpp
+)
+target_include_directories(turnthem_core PUBLIC ${PROJECT_SOURCE_DIR}/core/include)
+turnthem_warnings(turnthem_core)
+
 # Game client
 if(TURNTHEM_BUILD_CLIENT)
     find_package(nlohmann_json REQUIRED)
@@ -70,7 +89,13 @@ if(TURNTHEM_BUILD_TESTS)
     enable_testing()
     add_executable(turnthem_tests
         tests/main.cpp
+        tests/test_grid.cpp
+        tests/test_collision.cpp
+        tests/test_weapons.cpp
+        tests/test_match.cpp
     )
     target_include_directories(turnthem_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/third_party)
+    target_link_libraries(turnthem_tests PRIVATE turnthem_core)
+    turnthem_warnings(turnthem_tests)
     add_test(NAME turnthem_tests COMMAND turnthem_tests)
 endif()
