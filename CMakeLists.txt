@@ -28,6 +28,11 @@ FetchContent_Declare(
     GIT_TAG v1.3.17
 )
 FetchContent_MakeAvailable(enet)
+if(TURNTHEM_SANITIZE)
+    # ENet 1.3.17 forms &peer->channels[0xFF] on a NULL array whenever it queues
+    # a disconnect (enet_peer_setup_outgoing_command); never dereferenced, but UBSan flags it
+    target_compile_options(enet PRIVATE -fno-sanitize=pointer-overflow)
+endif()
 
 function(turnthem_warnings target)
     if(MSVC)
@@ -54,6 +59,30 @@ add_library(turnthem_core STATIC
 )
 target_include_directories(turnthem_core PUBLIC ${PROJECT_SOURCE_DIR}/core/include)
 turnthem_warnings(turnthem_core)
+
+# Networking: the ENet client link and the server. enet.h stays inside these
+# .cpp files (on Windows it pulls in windows.h, which clashes with raylib), and
+# ENet doesn't export its include dir, so it's added here privately.
+add_library(turnthem_net STATIC
+    net/src/enet_link.cpp
+    net/src/server.cpp
+)
+target_include_directories(turnthem_net PUBLIC ${PROJECT_SOURCE_DIR}/net/include)
+target_include_directories(turnthem_net SYSTEM PRIVATE ${enet_SOURCE_DIR}/include)
+target_link_libraries(turnthem_net PUBLIC turnthem_core PRIVATE enet)
+if(WIN32)
+    target_link_libraries(turnthem_net PRIVATE ws2_32 winmm)
+endif()
+turnthem_warnings(turnthem_net)
+
+# Dedicated server and test bot: no raylib, so they build on a headless box
+add_executable(TurnThemServer server/main.cpp)
+target_link_libraries(TurnThemServer PRIVATE turnthem_net)
+turnthem_warnings(TurnThemServer)
+
+add_executable(TurnThemBot tools/bot_main.cpp)
+target_link_libraries(TurnThemBot PRIVATE turnthem_net)
+turnthem_warnings(TurnThemBot)
 
 # Game client
 if(TURNTHEM_BUILD_CLIENT)
@@ -100,9 +129,12 @@ if(TURNTHEM_BUILD_TESTS)
         tests/test_protocol.cpp
         tests/test_clock.cpp
         tests/test_view.cpp
+        tests/test_net.cpp
     )
     target_include_directories(turnthem_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/third_party)
-    target_link_libraries(turnthem_tests PRIVATE turnthem_core)
+    # the network tests also poke the server with a raw ENet client
+    target_include_directories(turnthem_tests SYSTEM PRIVATE ${enet_SOURCE_DIR}/include)
+    target_link_libraries(turnthem_tests PRIVATE turnthem_net enet)
     turnthem_warnings(turnthem_tests)
     add_test(NAME turnthem_tests COMMAND turnthem_tests)
 endif()
