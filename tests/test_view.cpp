@@ -81,6 +81,7 @@ void CheckConverged(const Outcome& out) {
     CHECK(result.white == out.view.grid().Count(Side::White));
     CHECK(result.black == out.view.grid().Count(Side::Black));
     CHECK(out.view.weapons().size() == out.host->match().weapons().size());
+    CHECK(out.view.elixir() == out.host->match().elixir(out.view.side())); // exact mirror
     CHECK(out.view.ghosts().empty());
     for (const auto& slot : out.view.hand()) CHECK_FALSE(slot.pending);
 }

@@ -61,6 +61,7 @@ const char* PlaceErrorText(PlaceError err) {
         case PlaceError::Occupied: return "tile occupied";
         case PlaceError::Padding: return "too close to a weapon";
         case PlaceError::RateLimited: return "too fast";
+        case PlaceError::NotEnoughElixir: return "not enough elixir";
         case PlaceError::Count: break;
     }
     return "unknown";

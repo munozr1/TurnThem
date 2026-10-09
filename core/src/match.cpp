@@ -9,6 +9,7 @@ bool OutOfBounds(Vec2 p) {
 }
 
 Match::Match(const MatchConfig& config) : config_(config), grid_(Grid::Initial()), rng_(config.seed) {
+    elixir_ = {config.start_elixir, config.start_elixir};
     for (Hand& hand : hands_) {
         for (WeaponType& card : hand) card = DrawCard();
     }
@@ -32,7 +33,10 @@ PlaceError Match::CheckPlace(const PendingPlace& place) const {
     if (hand(place.side)[place.slot] != place.expected) return PlaceError::HandMismatch;
     const int64_t last = last_place_tick_[(int)place.side];
     if (last >= 0 && (int64_t)tick_ - last < (int64_t)config_.place_cooldown_ticks) return PlaceError::RateLimited;
-    return ValidatePlacement(grid_, place.side, place.col, place.row);
+    const PlaceError err = ValidatePlacement(grid_, place.side, place.col, place.row);
+    if (err != PlaceError::Ok) return err;
+    if (elixir(place.side) < CardCostPoints(place.expected)) return PlaceError::NotEnoughElixir;
+    return PlaceError::Ok;
 }
 
 void Match::End(EndReason reason, Winner winner, std::vector<Event>& events) {
@@ -60,7 +64,9 @@ void Match::Step(std::vector<Event>& events) {
         return;
     }
 
-    // 1. placements, in arrival order
+    // 1. elixir, then placements in arrival order (so a card is playable on the
+    //    tick its elixir arrives; the client mirrors this order)
+    for (ElixirPoints& points : elixir_) points = Regenerate(points, tick_, start_tick(), end_tick());
     for (const PendingPlace& place : pending_) {
         const PlaceError err = CheckPlace(place);
         uint32_t weapon_id = 0;
@@ -69,6 +75,7 @@ void Match::Step(std::vector<Event>& events) {
             grid_.MarkWeapon(place.col, place.row);
             weapons_.push_back(MakeWeapon(weapon_id, place.expected, place.side, place.col, place.row, tick_));
             last_place_tick_[(int)place.side] = tick_;
+            elixir_[(int)place.side] -= CardCostPoints(place.expected);
             events.push_back(EvWeaponPlaced{weapon_id, place.expected, place.side, place.col, place.row});
         }
         events.push_back(EvPlaceResult{place.side, place.req_id, err, weapon_id});
