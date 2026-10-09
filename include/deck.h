@@ -1,34 +1,30 @@
 #ifndef DECK_H
 #define DECK_H
 
-#include "raylib.h"
-#include "GameObject.h"
-#include "sprites.h"
-#include "weapon_card.h"
 #include <array>
+#include "raylib.h"
+#include "board_render.h"
 
-extern Atlas* sprite_manager;
-extern WeaponCard* GenerateWeaponCard(std::string name);
-extern std::vector<std::string> weapon_card_names;
-extern int RandomInRange(int min, int max);
+// The player's four cards, below the board. The server deals them; the deck
+// only draws whatever the match view says is in each slot.
+class Deck {
+public:
+    using Hand = std::array<tt::HandSlotView, tt::kHandSize>;
 
-struct Deck : public GameObject {
-    public:
-        Deck(SpriteDetails deck_sprite_details);
-        ~Deck();
-        void update() override;
-        void draw() override;
-        bool isPointInside(Vector2 point);
-        WeaponCard* getSelectedCard(Vector2 mouse_pos);
-        void resetCardPosition(int id);
-        void removeCard(int slot_id);
+    Deck(const GameSprites& sprites, float y);
 
-    private:
-        SpriteDetails deck_sprite_details;
-        Rectangle deck_frame;
-        Vector2 position;
-        std::array<WeaponCard*, 4> cards;
-        std::array<Vector2, 4> slot_positions;
+    bool Contains(Vector2 point) const;
+    // slot under `point` holding a card that can be played, or -1
+    int SlotAt(Vector2 point, const Hand& hand) const;
+    // `dragging` is drawn at the mouse instead (DrawDragged)
+    void Draw(const Hand& hand, int dragging) const;
+    void DrawDragged(tt::WeaponType type, Vector2 mouse) const;
+
+private:
+    Rectangle SlotRect(int slot) const;
+
+    const GameSprites& sprites_;
+    Vector2 position_;
 };
 
 #endif
