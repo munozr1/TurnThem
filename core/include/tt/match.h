@@ -3,6 +3,7 @@
 #include <random>
 #include <variant>
 #include <vector>
+#include "tt/elixir.h"
 #include "tt/grid.h"
 #include "tt/weapons.h"
 
@@ -15,6 +16,7 @@ struct MatchConfig {
     uint32_t countdown_ticks = 3 * kTickRate;
     uint32_t duration_ticks = 180 * kTickRate;
     uint32_t place_cooldown_ticks = 6;
+    ElixirPoints start_elixir = kStartElixirPoints;
 };
 
 enum class EndReason : uint8_t { Timer, Forfeit, Cancelled, Count };
@@ -62,6 +64,7 @@ public:
     const MatchConfig& config() const { return config_; }
     const Grid& grid() const { return grid_; }
     const Hand& hand(Side side) const { return hands_[(int)side]; }
+    ElixirPoints elixir(Side side) const { return elixir_[(int)side]; }
     const std::vector<WeaponState>& weapons() const { return weapons_; }
     const std::vector<ProjectileState>& projectiles() const { return projectiles_; }
 
@@ -82,6 +85,7 @@ private:
     std::mt19937_64 rng_;
     std::array<Hand, 2> hands_{};
     std::array<int64_t, 2> last_place_tick_{-1, -1};
+    std::array<ElixirPoints, 2> elixir_{};
     std::vector<PendingPlace> pending_;
     std::vector<WeaponState> weapons_;         // placement order = update order
     std::vector<ProjectileState> projectiles_; // spawn order = update order

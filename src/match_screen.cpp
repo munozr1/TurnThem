@@ -88,7 +88,7 @@ void MatchScreen::Update(double now_s, tt::Link& link) {
             hover_row_ = tt::kRows - 1 - hover_row_;
         }
         hover_ = true;
-        hover_valid_ = view_.CheckLocal(hover_col_, hover_row_) == tt::PlaceError::Ok;
+        hover_valid_ = view_.CheckPlace((uint8_t)drag_slot_, hover_col_, hover_row_) == tt::PlaceError::Ok;
     }
 
     // released (checking "not down" also catches a release that happened between frames)
@@ -96,7 +96,7 @@ void MatchScreen::Update(double now_s, tt::Link& link) {
         if (hover_ && hover_valid_) {
             if (auto request = view_.RequestPlace((uint8_t)drag_slot_, hover_col_, hover_row_)) link.Send(*request);
         } else if (hover_) {
-            toast_ = tt::PlaceErrorText(view_.CheckLocal(hover_col_, hover_row_));
+            toast_ = tt::PlaceErrorText(view_.CheckPlace((uint8_t)drag_slot_, hover_col_, hover_row_));
             toast_until_ = now_s + 1.5;
         }
         drag_slot_ = -1;
@@ -114,7 +114,8 @@ void MatchScreen::Draw() const {
     EndMode2D();
 
     DrawHud();
-    deck_.Draw(view_.hand(), drag_slot_);
+    deck_.Draw(view_.hand(), drag_slot_, view_.AvailableElixir());
+    DrawElixir();
     if (drag_slot_ >= 0 && view_.hand()[drag_slot_].type) deck_.DrawDragged(*view_.hand()[drag_slot_].type, GetMousePosition());
 
     if (lost_) {
@@ -144,6 +145,30 @@ void MatchScreen::Draw() const {
         const int width = MeasureText(toast_.c_str(), 20) + 24;
         DrawRectangle((kScreenW - width) / 2, kHudY - 48, width, 34, Color{0, 0, 0, 170});
         DrawCentered(toast_.c_str(), kHudY - 41, 20, RAYWHITE);
+    }
+}
+
+void MatchScreen::DrawElixir() const {
+    DrawRectangle(0, kElixirY, kScreenW, kElixirH, Color{35, 35, 35, 255});
+    const tt::ElixirPoints points = view_.AvailableElixir();
+    const int whole = points / tt::kElixirTicks;
+
+    // the count in a drop-coloured circle, then a 10-segment bar that fills smoothly
+    const Vector2 icon = {20, kElixirY + kElixirH / 2.0f};
+    DrawCircleV(icon, 11, Color{190, 70, 230, 255});
+    const char* count = TextFormat("%d", whole);
+    DrawText(count, (int)icon.x - MeasureText(count, 16) / 2, (int)icon.y - 8, 16, RAYWHITE);
+
+    const Rectangle bar = {40, kElixirY + 6.0f, kScreenW - 50.0f, kElixirH - 12.0f};
+    DrawRectangleRec(bar, Color{60, 20, 80, 255});
+    const float filled = bar.width * points / (float)tt::kMaxElixirPoints;
+    DrawRectangleRec({bar.x, bar.y, filled, bar.height}, Color{190, 70, 230, 255});
+    for (int i = 1; i < tt::kMaxElixir; i++) {
+        const float x = bar.x + bar.width * i / tt::kMaxElixir;
+        DrawLineEx({x, bar.y}, {x, bar.y + bar.height}, 2, Color{35, 35, 35, 255});
+    }
+    if (view_.DoubleElixir()) {
+        DrawText("x2", (int)(bar.x + bar.width - 24), (int)bar.y, 16, Color{255, 220, 90, 255});
     }
 }
 

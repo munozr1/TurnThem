@@ -4,6 +4,7 @@
 #include <optional>
 #include <unordered_map>
 #include <vector>
+#include "tt/elixir.h"
 #include "tt/playback_clock.h"
 #include "tt/protocol.h"
 
@@ -46,8 +47,10 @@ public:
     void OnMessage(const ServerMsg& msg, double now_s);
     void Update(double now_s);
 
-    // why (col,row) can't take a weapon right now, from what this client knows
+    // why (col,row) can't take a weapon right now, from what this client knows (board + pending)
     PlaceError CheckLocal(int col, int row) const;
+    // CheckLocal plus the card itself: the slot holds a playable card and we can afford it
+    PlaceError CheckPlace(uint8_t slot, int col, int row) const;
     // checks locally, records a ghost and marks the slot pending; returns the request to send
     std::optional<MsgPlaceRequest> RequestPlace(uint8_t slot, int col, int row);
 
@@ -60,6 +63,12 @@ public:
     Vec2 ProjectilePos(const ViewProjectile& p) const;
     const std::vector<Ghost>& ghosts() const { return ghosts_; }
     const std::array<HandSlotView, kHandSize>& hand() const { return hand_; }
+    // our elixir as of the tick being shown (mirrors the server exactly)
+    ElixirPoints elixir() const { return elixir_; }
+    // minus what pending placements will cost once the server applies them
+    ElixirPoints AvailableElixir() const;
+    bool CanAfford(WeaponType type) const { return AvailableElixir() >= CardCostPoints(type); }
+    bool DoubleElixir() const;
     double playback() const { return clock_.playback(); }
     float SecondsLeft() const;
     float CountdownLeft() const;
@@ -87,6 +96,7 @@ private:
     std::array<HandSlotView, kHandSize> hand_{};
     std::deque<MsgTick> buffered_;
     std::unordered_map<uint32_t, Vec2> early_hits_; // hits for projectiles not spawned in playback yet
+    ElixirPoints elixir_ = kStartElixirPoints;
     std::optional<MsgMatchEnd> result_;
     std::optional<PlaceError> rejection_;
     int64_t applied_tick_ = -1;

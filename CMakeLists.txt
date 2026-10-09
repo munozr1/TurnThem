@@ -129,6 +129,7 @@ if(TURNTHEM_BUILD_TESTS)
         tests/test_protocol.cpp
         tests/test_clock.cpp
         tests/test_view.cpp
+        tests/test_elixir.cpp
         tests/test_net.cpp
     )
     target_include_directories(turnthem_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/third_party)

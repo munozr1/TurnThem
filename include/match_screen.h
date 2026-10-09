@@ -24,6 +24,7 @@ public:
 private:
     Rectangle MenuButton() const;
     void DrawHud() const;
+    void DrawElixir() const;
     void DrawOverlay(const char* title, const std::string& detail) const;
 
     const GameSprites& sprites_;

@@ -46,6 +46,8 @@ Start the game with `./build/TurnThem`.
 
 Drag a card from the deck onto one of your own tiles (not next to another weapon). Press Esc to leave a match.
 
+Every card costs 3 elixir. You start with 5, gain 1 every 2.8 seconds up to 10, and twice as fast in the last minute. The purple bar under the deck shows how much you have; cards you can't afford yet are greyed out.
+
 Client options:
 
 | Option | Meaning |
