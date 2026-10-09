@@ -1,4 +1,5 @@
 #include "tt/match.h"
+#include <algorithm>
 #include "tt/collision.h"
 
 namespace tt {
@@ -9,7 +10,9 @@ bool OutOfBounds(Vec2 p) {
 }
 
 Match::Match(const MatchConfig& config) : config_(config), grid_(Grid::Initial()), rng_(config.seed) {
-    elixir_ = {config.start_elixir, config.start_elixir};
+    // out of range would make MATCH_START undecodable
+    config_.start_elixir = std::clamp(config.start_elixir, ElixirPoints{0}, kMaxElixirPoints);
+    elixir_ = {config_.start_elixir, config_.start_elixir};
     for (Hand& hand : hands_) {
         for (WeaponType& card : hand) card = DrawCard();
     }
@@ -47,6 +50,9 @@ void Match::End(EndReason reason, Winner winner, std::vector<Event>& events) {
 
 void Match::Step(std::vector<Event>& events) {
     if (ended_) return;
+    // elixir first, on every tick the client plays back (it is a no-op outside play),
+    // so the client's mirror stays exact even on a forfeit tick
+    for (ElixirPoints& points : elixir_) points = Regenerate(points, tick_, start_tick(), end_tick());
 
     if (forfeit_side_ >= 0) {
         if (tick_ < start_tick()) {
@@ -64,9 +70,8 @@ void Match::Step(std::vector<Event>& events) {
         return;
     }
 
-    // 1. elixir, then placements in arrival order (so a card is playable on the
-    //    tick its elixir arrives; the client mirrors this order)
-    for (ElixirPoints& points : elixir_) points = Regenerate(points, tick_, start_tick(), end_tick());
+    // 1. placements, in arrival order (after this tick's elixir, so a card is
+    //    playable on the tick its elixir arrives; the client mirrors this order)
     for (const PendingPlace& place : pending_) {
         const PlaceError err = CheckPlace(place);
         uint32_t weapon_id = 0;

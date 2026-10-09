@@ -121,3 +121,12 @@ TEST_CASE("elixir caps how fast a player can fill the board") {
     CHECK(placed >= 25);
     CHECK(placed <= 31);
 }
+
+TEST_CASE("an out-of-range starting elixir is clamped, so MATCH_START stays decodable") {
+    MatchConfig rich = Config();
+    rich.start_elixir = kMaxElixirPoints + 500;
+    CHECK(Match(rich).elixir(Side::White) == kMaxElixirPoints);
+    MatchConfig broke = Config();
+    broke.start_elixir = -20;
+    CHECK(Match(broke).elixir(Side::Black) == 0);
+}

@@ -107,6 +107,14 @@ TEST_CASE("leaving mid-match forfeits and shows the result straight away") {
     Outcome out;
     Play(out, link, 60, 40, 5.0);
     REQUIRE(out.view.result());
+    // let the final TICK play back too, then the elixir mirror must still be exact
+    for (double now = 40; now < 41; now += 1.0 / 60) {
+        link.Pump(now);
+        ServerMsg msg;
+        while (link.Receive(msg)) out.view.OnMessage(msg, now);
+        out.view.Update(now);
+    }
+    CHECK(out.view.elixir() == link.host()->match().elixir(out.view.side()));
     CHECK(out.view.result()->reason == EndReason::Forfeit);
     CHECK(out.view.result()->winner == Winner::Black);
     CHECK(out.view.phase() == MatchView::Phase::Ended);
@@ -163,6 +171,8 @@ TEST_CASE("a placement result that arrives after its weapon was played back leav
     // the TICK with the weapon arrives and is played back before PLACE_RESULT (a stall split them)
     tick(21, {EvWeaponPlaced{1, WeaponType::Cannon, Side::White, 6, 15}});
     CHECK(view.weapons().size() == 1);
+    CHECK(view.ghosts().empty());                       // settled by its weapon, before the result
+    CHECK(view.AvailableElixir() == view.elixir());     // so its cost isn't counted twice
     view.OnMessage(MsgPlaceResult{request->req_id, PlaceError::Ok, 1}, now);
     view.OnMessage(MsgHandSlot{0, WeaponType::SCannon}, now);
     for (uint32_t t = 22; t < 40; t++) tick(t);

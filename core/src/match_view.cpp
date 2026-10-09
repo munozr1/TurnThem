@@ -81,8 +81,16 @@ void MatchView::ApplyTick(const MsgTick& tick) {
             if (placed->side == side_) elixir_ -= CardCostPoints(placed->type);
             grid_.MarkWeapon(placed->col, placed->row);
             weapons_.push_back(MakeWeapon(placed->weapon_id, placed->type, placed->side, placed->col, placed->row, tick.tick));
+            // our ghost for this weapon, even if its PLACE_RESULT hasn't arrived yet
+            // (weapon_id still 0); otherwise its cost would count twice until it does.
+            // Only one of our ghosts can sit on a cell, and only its request can put
+            // our weapon there.
+            const bool ours = placed->side == side_;
             ghosts_.erase(std::remove_if(ghosts_.begin(), ghosts_.end(),
-                                         [&](const Ghost& g) { return g.weapon_id == placed->weapon_id; }),
+                                         [&](const Ghost& g) {
+                                             return g.weapon_id == placed->weapon_id ||
+                                                    (ours && g.weapon_id == 0 && g.col == placed->col && g.row == placed->row);
+                                         }),
                           ghosts_.end());
         } else if (auto* spawn = std::get_if<EvProjSpawned>(&event)) {
             auto weapon = std::find_if(weapons_.begin(), weapons_.end(),
