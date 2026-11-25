@@ -8,7 +8,7 @@
 namespace tt {
 
 // A headless player: finds a match over any Link, places weapons with the bot
-// policy, and checks every grid checksum the server sends. Used by
+// policy, and checks every battle checksum the server sends. Used by
 // TurnThemBot and the end-to-end tests.
 class BotClient {
 public:

@@ -26,9 +26,18 @@ private:
     void DrawHud() const;
     void DrawSupplies() const;
     void DrawOverlay(const char* title, const std::string& detail) const;
+    tt::Vec2 InfantryAim(const tt::InfantryState& unit) const;
+
+    struct FallenInfantry {
+        tt::InfantryState unit;
+        tt::Vec2 position;
+        tt::Vec2 aim;
+        double fallen_at;
+    };
 
     const GameSprites& sprites_;
     tt::MatchView view_;
+    std::vector<FallenInfantry> fallen_;
     Deck deck_;
     Camera2D camera_{};
     int drag_slot_ = -1;

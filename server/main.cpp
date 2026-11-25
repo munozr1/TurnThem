@@ -20,7 +20,7 @@ void Usage() {
                  "usage: TurnThemServer [--port N] [--match-seconds S] [--countdown-seconds S] [--max-players N]\n"
                  "  --port N               UDP port to listen on (default %u; 0 picks a free one)\n"
                  "  --match-seconds S      length of a match (default 180)\n"
-                 "  --countdown-seconds S  countdown before play starts (default 3)\n"
+                 "  --countdown-seconds S  artillery setup duration (default 20)\n"
                  "  --max-players N        connected players allowed at once (default 256)\n",
                  (unsigned)tt::kDefaultPort);
 }

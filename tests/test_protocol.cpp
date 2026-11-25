@@ -35,6 +35,11 @@ MsgTick SampleTick() {
     tick.events.push_back(EvProjHit{9, 0, 0, {1.5f, 39.75f}});
     tick.events.push_back(EvWeaponHit{10, 7, 65, {480.0f, 760.0f}});
     tick.events.push_back(EvWeaponHit{11, 7, 0, {480.0f, 760.0f}});
+    tick.events.push_back(EvSquadPlaced{12, Side::White, 4, 12});
+    InfantryState infantry;
+    infantry.id = 13;
+    infantry.pos = {180, 500};
+    tick.events.push_back(EvBattleState{MakeHeadquarters(), {infantry}});
     return tick;
 }
 
@@ -50,6 +55,9 @@ TEST_CASE("client messages round-trip") {
     CHECK(place.col == 12);
     CHECK(place.row == 19);
     CHECK(place.expected == WeaponType::SCannon);
+    CHECK_FALSE(place.setup);
+    CHECK(std::get<MsgPlaceRequest>(RoundTrip(ClientMsg{MsgPlaceRequest{1, 0, 3, 15, WeaponType::Cannon, true}})).setup);
+    CHECK(std::get<MsgPlaceRequest>(RoundTrip(ClientMsg{MsgPlaceRequest{1, 0, 3, 15, WeaponType::Infantry}})).expected == WeaponType::Infantry);
 }
 
 TEST_CASE("server messages round-trip") {
@@ -59,9 +67,10 @@ TEST_CASE("server messages round-trip") {
     CHECK(start.your_side == Side::Black);
     CHECK(start.end_tick == 10980);
     CHECK(start.hand[1] == WeaponType::SCannon);
+    CHECK(start.setup_elixir == ElixirToPoints(6));
 
     const auto tick = std::get<MsgTick>(RoundTrip(ServerMsg{SampleTick()}));
-    REQUIRE(tick.events.size() == 5);
+    REQUIRE(tick.events.size() == 7);
     CHECK(tick.checksum == 0xDEADBEEF);
     CHECK(std::get<EvProjSpawned>(tick.events[1]).vel.x == -353.55f);
     CHECK(std::get<EvProjHit>(tick.events[2]).point.y == 39.75f);
@@ -71,6 +80,8 @@ TEST_CASE("server messages round-trip") {
     CHECK(damaged.health == 65);
     CHECK(damaged.point.x == 480.0f);
     CHECK(std::get<EvWeaponHit>(tick.events[4]).health == 0);
+    CHECK(std::get<EvSquadPlaced>(tick.events[5]).squad_id == 12);
+    CHECK(std::get<EvBattleState>(tick.events[6]).infantry[0].id == 13);
 
     MsgTick empty;
     empty.tick = 1;
@@ -82,6 +93,8 @@ TEST_CASE("server messages round-trip") {
     const auto end = std::get<MsgMatchEnd>(RoundTrip(ServerMsg{MsgMatchEnd{EndReason::Forfeit, Winner::Black, 100, 160, 999}}));
     CHECK(end.winner == Winner::Black);
     CHECK(end.black == 160);
+    const auto destroyed = std::get<MsgMatchEnd>(RoundTrip(ServerMsg{MsgMatchEnd{EndReason::BaseDestroyed, Winner::White, 1000, 0, 60}}));
+    CHECK(destroyed.reason == EndReason::BaseDestroyed);
 }
 
 TEST_CASE("out-of-range values are rejected") {
@@ -95,7 +108,8 @@ TEST_CASE("out-of-range values are rejected") {
     };
     CHECK(rejects_client({}));
     CHECK(rejects_client({0x7F}));
-    CHECK(rejects_client({0x03, 1, 0, 0, 0, 0, 6, 15, 2})); // weapon type 2
+    CHECK(rejects_client({0x03, 1, 0, 0, 0, 0, 6, 15, 3, 0})); // unknown card
+    CHECK(rejects_client({0x03, 1, 0, 0, 0, 0, 6, 15, 0, 2})); // invalid phase flag
     CHECK(rejects_server({0x82, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0})); // side 2
     CHECK(rejects_server({0x85, 4, 0}));                     // hand slot 4
     CHECK(rejects_server({0x84, 1, 0, 0, 0, 99, 0, 0, 0, 0})); // unknown PlaceError
@@ -112,6 +126,61 @@ TEST_CASE("out-of-range values are rejected") {
     CHECK(rejects_server(Encode(ServerMsg{tick})));
     tick.events = {EvWeaponHit{1, 1, 65, {0, INFINITY}}};
     CHECK(rejects_server(Encode(ServerMsg{tick})));
+}
+
+TEST_CASE("battle snapshots reject invalid health, positions, identities and excessive units") {
+    auto rejects = [](EvBattleState state) {
+        MsgTick tick;
+        tick.events.push_back(std::move(state));
+        const auto bytes = Encode(ServerMsg{tick});
+        ServerMsg decoded;
+        return !Decode(bytes.data(), bytes.size(), decoded);
+    };
+    InfantryState soldier;
+    soldier.id = 10;
+    soldier.pos = {120, 600};
+    EvBattleState valid{MakeHeadquarters(), {soldier}};
+    CHECK_FALSE(rejects(valid));
+    auto bad = valid;
+    bad.bases[0].health = kBaseMaxHealth + 1;
+    CHECK(rejects(bad));
+    bad = valid;
+    bad.infantry[0].pos.x = NAN;
+    CHECK(rejects(bad));
+    bad.infantry[0].pos.x = kBoardW + 1;
+    CHECK(rejects(bad));
+    bad = valid;
+    bad.infantry[0].target_kind = CombatTargetKind::Count;
+    CHECK(rejects(bad));
+    bad = valid;
+    bad.infantry[0].health = 0;
+    CHECK(rejects(bad));
+    bad = valid;
+    bad.infantry.push_back(soldier);
+    CHECK(rejects(bad));
+    bad = valid;
+    bad.infantry.clear();
+    for (int i = 0; i <= 2 * kMaxInfantryPerSide; i++) {
+        soldier.id = (uint32_t)i + 10;
+        soldier.side = i % 2 ? Side::White : Side::Black;
+        bad.infantry.push_back(soldier);
+    }
+    CHECK(rejects(bad));
+}
+
+TEST_CASE("a full infantry field fits in one ordinary snapshot packet") {
+    EvBattleState state{MakeHeadquarters(), {}};
+    for (int i = 0; i < 2 * kMaxInfantryPerSide; i++) {
+        InfantryState soldier;
+        soldier.id = (uint32_t)i + 10;
+        soldier.side = i % 2 ? Side::White : Side::Black;
+        soldier.pos = {100.0f + (float)i, 500};
+        state.infantry.push_back(soldier);
+    }
+    MsgTick tick{60, true, 123, {state}};
+    CHECK(Encode(ServerMsg{tick}).size() < 1400);
+    const auto decoded = std::get<MsgTick>(RoundTrip(ServerMsg{tick}));
+    CHECK(std::get<EvBattleState>(decoded.events[0]).infantry.size() == 2 * kMaxInfantryPerSide);
 }
 
 TEST_CASE("random and mutated input never crashes the decoders") {

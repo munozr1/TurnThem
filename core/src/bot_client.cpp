@@ -25,15 +25,17 @@ void BotClient::Pump(double now_s) {
     view_.Update(now_s);
     if (view_.TakeRejection()) rejected_++;
 
-    if (view_.phase() != MatchView::Phase::Running || now_s < next_place_) return;
+    if ((view_.phase() != MatchView::Phase::Running && view_.phase() != MatchView::Phase::Countdown) ||
+        now_s < next_place_) return;
     next_place_ = now_s + place_every_s_;
-    const auto choice = ChooseBotPlacement(view_.grid(), view_.side(), rng_, [&](int col, int row) {
-        return view_.CheckLocal(col, row) == PlaceError::Ok;
-    });
-    if (!choice) return;
     const uint8_t first = (uint8_t)(rng_() % kHandSize);
     for (uint8_t i = 0; i < kHandSize; i++) {
-        if (auto request = view_.RequestPlace((uint8_t)((first + i) % kHandSize), choice->col, choice->row)) {
+        const uint8_t slot = (uint8_t)((first + i) % kHandSize);
+        const auto choice = ChooseBotPlacement(view_.grid(), view_.side(), rng_, [&](int col, int row) {
+            return view_.CheckPlace(slot, col, row) == PlaceError::Ok;
+        });
+        if (!choice) continue;
+        if (auto request = view_.RequestPlace(slot, choice->col, choice->row)) {
             link_->Send(*request);
             placed_++;
             return;

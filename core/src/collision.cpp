@@ -62,7 +62,8 @@ bool DetectTileCollision(const Grid& grid, Vec2 from, Vec2 to, Side side, TileHi
                 }
             }
         }
-        if (weapon_id == 0 && tile.side == side) return false;
+        // Ground never absorbs shells or changes allegiance in arena combat.
+        if (weapon_id == 0) return false;
         t = fminf(fmaxf(t, 0.0f), 1.0f);
         hit.col = c;
         hit.row = r;

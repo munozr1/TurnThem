@@ -27,16 +27,25 @@ bool LoopbackLink::Receive(ServerMsg& msg) {
 void LoopbackLink::BotAct() {
     const Match& match = host_->match();
     const Side bot = Opponent(options_.human);
-    if (match.tick() < bot_next_tick_ || match.tick() < match.start_tick()) return;
-    const uint8_t slot = (uint8_t)(rng_() % kHandSize);
-    if (match.elixir(bot) < CardCostPoints(match.hand(bot)[slot])) {
-        bot_next_tick_ = match.tick() + 20; // saving up
+    if (match.ended() || match.tick() < bot_next_tick_) return;
+    const bool setup = match.phase() == MatchPhase::Setup;
+    const ElixirPoints available = setup ? match.setup_elixir(bot) : match.elixir(bot);
+    bot_next_tick_ = match.tick() + 20;
+    const uint8_t first = (uint8_t)(rng_() % kHandSize);
+    for (uint8_t i = 0; i < kHandSize; i++) {
+        const uint8_t slot = (uint8_t)((first + i) % kHandSize);
+        const WeaponType card = match.hand(bot)[slot];
+        if ((setup && card == WeaponType::Infantry) || available < CardCostPoints(card)) continue;
+        const auto choice = ChooseBotPlacement(match.grid(), bot, rng_, [&](int col, int row) {
+            if (card == WeaponType::Infantry)
+                return ValidateInfantryPlacement(match.grid(), bot, col, row, match.infantry()) == PlaceError::Ok;
+            return ValidateArtilleryPlacement(match.grid(), bot, col, row, match.infantry()) == PlaceError::Ok;
+        });
+        if (!choice) continue;
+        host_->OnClientMessage(bot, MsgPlaceRequest{bot_req_id_++, slot, choice->col, choice->row, card, setup});
+        bot_next_tick_ = match.tick() + 30 + (uint32_t)(rng_() % 90);
         return;
     }
-    bot_next_tick_ = match.tick() + 30 + (uint32_t)(rng_() % 90); // then a 0.5-2 s pause
-    const auto choice = ChooseBotPlacement(match.grid(), bot, rng_);
-    if (!choice) return;
-    host_->OnClientMessage(bot, MsgPlaceRequest{bot_req_id_++, slot, choice->col, choice->row, match.hand(bot)[slot]});
 }
 
 void LoopbackLink::Pump(double now_s) {

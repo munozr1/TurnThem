@@ -39,7 +39,7 @@ bool CellAt(Vec2 p, int& col, int& row);
 
 enum class PlaceError : uint8_t {
     Ok,
-    NotRunning,   // countdown or match over
+    NotRunning,   // stale phase request or match over
     BadSlot,
     HandMismatch, // client's idea of the card in that slot is stale
     OutOfBounds,
@@ -48,11 +48,15 @@ enum class PlaceError : uint8_t {
     Padding,
     RateLimited,
     NotEnoughElixir,
+    SetupArtilleryOnly,
+    UnitLimit,
     Count
 };
 const char* PlaceErrorText(PlaceError err);
 
 // board rules only (hand, timing and rate limits are the Match's job)
 PlaceError ValidatePlacement(const Grid& grid, Side side, int col, int row);
+// Deployment zones are fixed halves, independent of mutable Tile::side.
+bool InDeploymentZone(Side side, int col, int row);
 
 } // namespace tt

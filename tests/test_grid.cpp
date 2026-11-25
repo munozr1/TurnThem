@@ -99,3 +99,21 @@ TEST_CASE("removing artillery preserves overlapping clearance from surviving wea
     grid.RemoveWeapon(6, 12);
     CHECK(grid.Checksum() == Grid::Initial().Checksum());
 }
+
+TEST_CASE("deployment zones stay fixed when tile colors differ") {
+    Grid grid = Grid::Initial();
+    grid.at(3, 12).side = Side::Black;
+    grid.at(3, 7).side = Side::White;
+    CHECK(ValidatePlacement(grid, Side::White, 3, 12) == PlaceError::Ok);
+    CHECK(ValidatePlacement(grid, Side::Black, 3, 12) == PlaceError::NotOwnTile);
+    CHECK(ValidatePlacement(grid, Side::Black, 3, 7) == PlaceError::Ok);
+    CHECK(ValidatePlacement(grid, Side::White, 3, 7) == PlaceError::NotOwnTile);
+}
+
+TEST_CASE("headquarters reserve deployment space for both teams") {
+    const Grid grid = Grid::Initial();
+    CHECK(ValidatePlacement(grid, Side::White, 6, 18) == PlaceError::Occupied);
+    CHECK(ValidatePlacement(grid, Side::Black, 6, 1) == PlaceError::Occupied);
+    CHECK(ValidatePlacement(grid, Side::White, 5, 18) == PlaceError::Padding);
+    CHECK(ValidatePlacement(grid, Side::Black, 7, 1) == PlaceError::Padding);
+}

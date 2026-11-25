@@ -57,29 +57,31 @@ struct Driver {
     }
 };
 
-// Both bots saw the same end, and it matches each one's own copy of the board.
+// Both bots saw the same end, and it matches their played-back HQ state.
 void CheckAgreed(const BotClient& a, const BotClient& b) {
     REQUIRE(a.result());
     REQUIRE(b.result());
     const MsgMatchEnd ra = *a.result(), rb = *b.result();
-    CHECK(ra.reason == EndReason::Timer);
+    CHECK((ra.reason == EndReason::Timer || ra.reason == EndReason::BaseDestroyed));
     CHECK(rb.reason == ra.reason);
     CHECK(rb.winner == ra.winner);
     CHECK(rb.white == ra.white);
     CHECK(rb.black == ra.black);
     CHECK(rb.end_tick == ra.end_tick);
-    CHECK(ra.white + ra.black == kCols * kRows);
     CHECK(a.view().match_id() == b.view().match_id());
     CHECK(a.view().side() != b.view().side());
     for (const BotClient* bot : {&a, &b}) {
-        CHECK(bot->view().grid().Count(Side::White) == ra.white);
-        CHECK(bot->view().grid().Count(Side::Black) == ra.black);
+        CHECK(bot->view().bases()[(int)Side::White].health == ra.white);
+        CHECK(bot->view().bases()[(int)Side::Black].health == ra.black);
         CHECK(bot->view().checksum_mismatches() == 0);
         CHECK(bot->view().checksums_verified() > 0);
         CHECK(bot->placed() > 0);
     }
-    const int white = ra.white, black = ra.black;
-    CHECK(ra.winner == (white > black ? Winner::White : black > white ? Winner::Black : Winner::Draw));
+    if (ra.reason == EndReason::Timer) CHECK(ra.winner == Winner::Draw);
+    else {
+        CHECK((ra.white == 0 || ra.black == 0));
+        CHECK(ra.winner == (ra.white == ra.black ? Winner::Draw : ra.white == 0 ? Winner::Black : Winner::White));
+    }
 }
 
 // A bare ENet client, for sending what a real client never would.
@@ -247,6 +249,39 @@ TEST_CASE("a player who drops mid-match forfeits to the other") {
     CHECK(b.link().status() == LinkStatus::Connected);
     CHECK(server.matches() == 0);
     CHECK(server.sessions() == 1);
+}
+
+TEST_CASE("setup artillery and live squads stay synchronized over delayed ENet") {
+    Server server(TestServer(2 * kTickRate, 20 * kTickRate));
+    REQUIRE(server.Start());
+    EnetLinkOptions options = LinkTo(server);
+    options.sim_lag_s = 0.035;
+    options.sim_jitter_s = 0.02;
+    BotClient a(MakeEnetLink(options), 81, 0.25), b(MakeEnetLink(options), 82, 0.25);
+    Driver driver{server};
+    bool saw_setup_artillery = false, saw_infantry = false, saw_damage = false;
+    REQUIRE(driver.Until([&](double t) {
+        a.Pump(t);
+        b.Pump(t);
+        for (const BotClient* bot : {&a, &b}) {
+            const auto& view = bot->view();
+            if (view.phase() == MatchView::Phase::Countdown && !view.weapons().empty()) {
+                saw_setup_artillery = true;
+                CHECK(view.projectiles().empty());
+                CHECK(view.infantry().empty());
+            }
+            saw_infantry |= !view.infantry().empty();
+            for (const auto& unit : view.infantry()) saw_damage |= unit.health < kInfantryMaxHealth;
+            for (const auto& weapon : view.weapons()) saw_damage |= weapon.health < kWeaponMaxHealth;
+            for (const auto& base : view.bases()) saw_damage |= base.health < kBaseMaxHealth;
+        }
+    }, [&] { return a.finished() && b.finished(); }));
+    CheckAgreed(a, b);
+    CHECK(saw_setup_artillery);
+    CHECK(saw_infantry);
+    CHECK(saw_damage);
+    CHECK(BattleChecksum(a.view().grid(), a.view().weapons(), a.view().bases(), a.view().infantry()) ==
+          BattleChecksum(b.view().grid(), b.view().weapons(), b.view().bases(), b.view().infantry()));
 }
 
 TEST_CASE("a player who drops during the countdown cancels the match") {

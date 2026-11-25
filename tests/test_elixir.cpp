@@ -93,7 +93,7 @@ TEST_CASE("the last minute's double elixir is visible in a short match") {
     CHECK(match.elixir(Side::White) == ElixirToPoints(7));
 }
 
-TEST_CASE("elixir caps how fast a player can fill the board") {
+TEST_CASE("live supplies bound total deployments even if headquarters destruction ends combat early") {
     // a player who places whenever they can afford to, for a whole 3-minute match
     Match match(Config(10, 180 * kTickRate));
     int placed = 0;
@@ -118,8 +118,28 @@ TEST_CASE("elixir caps how fast a player can fill the board") {
             if (auto* r = std::get_if<EvPlaceResult>(&events[i])) placed += r->err == PlaceError::Ok;
     }
     // 5 to start, ~43 over two normal minutes, ~43 in the double minute: ~90 elixir, ~30 cards
-    CHECK(placed >= 25);
+    CHECK(placed > 0);
     CHECK(placed <= 31);
+}
+
+TEST_CASE("setup allowance buys two guns without spending or regenerating combat supplies") {
+    Match match(Config(120, 6000));
+    CHECK(match.setup_elixir(Side::White) == ElixirToPoints(6));
+    REQUIRE(Place(match, Side::White, 2, 15) == PlaceError::Ok);
+    CHECK(match.setup_elixir(Side::White) == ElixirToPoints(3));
+    CHECK(match.elixir(Side::White) == ElixirToPoints(5));
+    StepTo(match, 10);
+    REQUIRE(Place(match, Side::White, 8, 15) == PlaceError::Ok);
+    CHECK(match.setup_elixir(Side::White) == 0);
+    StepTo(match, 20);
+    CHECK(Place(match, Side::White, 11, 15) == PlaceError::NotEnoughElixir);
+    StepTo(match, match.start_tick());
+    CHECK(match.projectiles().empty());
+    CHECK(match.elixir(Side::White) == ElixirToPoints(5));
+    CHECK(match.setup_elixir(Side::White) == 0);
+    StepTo(match, match.start_tick() + 1);
+    CHECK(match.elixir(Side::White) == ElixirToPoints(5) + 1);
+    CHECK(match.setup_elixir(Side::White) == 0);
 }
 
 TEST_CASE("an out-of-range starting elixir is clamped, so MATCH_START stays decodable") {

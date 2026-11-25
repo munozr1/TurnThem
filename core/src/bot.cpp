@@ -12,16 +12,21 @@ std::optional<BotChoice> ChooseBotPlacement(const Grid& grid, Side side, std::mt
     int best = -1;
     for (int row = 0; row < kRows; row++) {
         for (int col = 0; col < kCols; col++) {
-            if (ValidatePlacement(grid, side, col, row) != PlaceError::Ok) continue;
-            if (allowed && !allowed(col, row)) continue;
+            if (allowed ? !allowed(col, row) : ValidatePlacement(grid, side, col, row) != PlaceError::Ok) continue;
             candidates.push_back({(uint8_t)col, (uint8_t)row});
             if (forward(row) > best) best = forward(row);
         }
     }
-    // keep the cells within two rows of the front, then pick one at random
+    // Favor central firing lanes so artillery can threaten the opposing HQ.
     std::vector<BotChoice> front;
     for (const BotChoice& c : candidates)
-        if (forward(c.row) >= best - 2) front.push_back(c);
+        if (forward(c.row) >= best - 2) {
+            front.push_back(c);
+            if (c.col >= kCols / 2 - 1 && c.col <= kCols / 2 + 1) {
+                front.push_back(c);
+                front.push_back(c);
+            }
+        }
     if (front.empty()) return std::nullopt;
     return front[rng() % front.size()];
 }

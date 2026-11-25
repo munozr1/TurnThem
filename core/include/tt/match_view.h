@@ -26,6 +26,7 @@ struct Ghost {
     uint8_t slot;
     WeaponType type;
     uint8_t col, row;
+    bool setup = false;
 };
 
 struct HandSlotView {
@@ -40,7 +41,7 @@ struct HandSlotView {
 // No rendering here, so the game client and the headless bot share it.
 class MatchView {
 public:
-    enum class Phase { Waiting, Countdown, Running, Ended };
+    enum class Phase { Waiting, Setup, Countdown = Setup, Running, Ended };
 
     explicit MatchView(double delay_ticks = 6.0) : clock_(delay_ticks) {}
 
@@ -59,13 +60,17 @@ public:
     uint32_t match_id() const { return match_id_; }
     const Grid& grid() const { return grid_; }
     const std::vector<WeaponState>& weapons() const { return weapons_; }
+    const std::array<HeadquartersState, 2>& bases() const { return bases_; }
+    const std::vector<InfantryState>& infantry() const { return infantry_; }
+    Vec2 InfantryPos(const InfantryState& soldier) const;
     const std::vector<ViewProjectile>& projectiles() const { return projectiles_; }
     Vec2 ProjectilePos(const ViewProjectile& p) const;
     const std::vector<Ghost>& ghosts() const { return ghosts_; }
     const std::array<HandSlotView, kHandSize>& hand() const { return hand_; }
     // our elixir as of the tick being shown (mirrors the server exactly)
     ElixirPoints elixir() const { return elixir_; }
-    // minus what pending placements will cost once the server applies them
+    ElixirPoints setup_elixir() const { return setup_elixir_; }
+    // The active phase's allowance, minus pending deployments in that phase.
     ElixirPoints AvailableElixir() const;
     bool CanAfford(WeaponType type) const { return AvailableElixir() >= CardCostPoints(type); }
     bool DoubleElixir() const;
@@ -83,6 +88,7 @@ private:
     void Reset(const MsgMatchStart& start, double now_s);
     void ApplyTick(const MsgTick& tick);
     bool ResultVisible() const;
+    PlaceError CheckDeployment(WeaponType type, int col, int row) const;
 
     PlaybackClock clock_;
     bool started_ = false;
@@ -91,12 +97,16 @@ private:
     uint32_t start_tick_ = 0, end_tick_ = 0;
     Grid grid_ = Grid::Initial();
     std::vector<WeaponState> weapons_;
+    std::array<HeadquartersState, 2> bases_ = MakeHeadquarters();
+    std::vector<InfantryState> infantry_;
+    std::unordered_map<uint32_t, Vec2> previous_infantry_;
     std::vector<ViewProjectile> projectiles_;
     std::vector<Ghost> ghosts_;
     std::array<HandSlotView, kHandSize> hand_{};
     std::deque<MsgTick> buffered_;
     std::unordered_map<uint32_t, Vec2> early_hits_; // hits for projectiles not spawned in playback yet
     ElixirPoints elixir_ = kStartElixirPoints;
+    ElixirPoints setup_elixir_ = ElixirToPoints(6);
     std::optional<MsgMatchEnd> result_;
     std::optional<PlaceError> rejection_;
     int64_t applied_tick_ = -1;

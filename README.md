@@ -1,8 +1,8 @@
 # TurnThem
 
-A 2D "Breakout PvP" game built with Raylib. Two players place cannons on their
-own colour; shells damage enemy artillery or convert the first enemy tile they hit. Whoever owns more
-of the arena when the 3-minute timer runs out wins.
+A real-time 1v1 battlefield game built with Raylib. Set up artillery, deploy
+three-soldier rifle squads as Supplies arrive, and destroy the opposing main
+base. The fixed arena has mirrored deployment zones; ground never changes hands.
 
 Working on a feature or fix? Start with the [contribution guide](CONTRIBUTING.md) to choose a branch, check your change, and open a pull request.
 
@@ -46,15 +46,38 @@ Start the game with `./build/TurnThem`.
 - **Practice**: play against a bot on your own machine, no server needed.
 - **Find Match**: connect to a server and get paired with the next player who is waiting.
 
-Drag a card from the deck onto one of your own tiles (not next to another weapon). Press Esc to leave a match.
+Drag a card from the deck onto your half of the battlefield. Press Esc to leave a match.
+
+- **Setup (20 seconds):** spend a separate allowance of 6 Supplies on starting
+  artillery. Guns cost 3 each. Infantry is unavailable during setup; weapons
+  remain idle and Supplies do not regenerate. Unspent setup allowance expires.
+- **Combat (3 minutes):** both sides start with 5 live Supplies. Deploy guns or
+  a **Rifle Squad** while your existing forces fight automatically.
+- **Rifle Squad:** one card costs 3 Supplies and deploys three soldiers. Each
+  advances toward the enemy HQ, stops within rifle range of an encountered
+  enemy, attacks until it is defeated, then moves on. Soldiers have individual
+  health and navigate around fixed emplacements. Each side can field up to 24
+  living soldiers; a blocked formation or full unit limit rejects the whole card
+  without spending Supplies.
+- **Victory:** destroy the opposing 1,200-health main base. If both bases are
+  destroyed on the same tick, or both survive the combat timer, the result is a
+  draw. Leaving during setup cancels the match; leaving combat forfeits it.
+
+Artillery needs a free cell with clearance from other emplacements; the base
+area is reserved. Infantry does not permanently occupy grid cells. Friendly
+forces do not damage one another. Placement zones stay fixed throughout combat.
 
 The Cannon is a wheeled field gun; the SCannon is a heavier rounded swivel emplacement. Both use chunky olive armor, worn steel barrels, and brass fittings. A blue marker identifies friendly artillery and a red marker identifies enemies, with a subtle tint and matching health-bar outlines. Both cannon types start with 100 health and lose 35 health per enemy shell, so three hits destroy them. Health bars shrink from green to yellow to red, and damaged artillery darkens. Friendly shells do not damage your weapons.
 
 Shots trigger barrel recoil, recovery, a brief muzzle flash, and fading smoke. The chassis stays the same size throughout the animation, and cards and placement previews use the resting pose. These effects follow the existing simulation ticks; fire rates, SCannon sweep angles, projectile speeds, and damage are unchanged.
 
-An enemy weapon absorbs a shell before its tile can change colour. Destroyed artillery disappears and stops firing, freeing its space for a new placement where the normal tile and spacing rules allow. Shells already in flight keep moving, and a later shell can convert the cleared enemy tile.
+Shells cross empty ground and hit the first enemy artillery, soldier, or base
+along their path. Destroyed artillery stops firing and frees its placement
+space. Shells already in flight keep moving after their firing weapon is lost.
 
-Deploying a weapon costs 3 **Supplies**. You start with 5, gain 1 every 2.8 seconds up to 10, and resupply twice as fast in the last minute. The olive-and-steel deployment tray uses khaki crate badges for costs and ten supply crates that fill smoothly as stock arrives. Unaffordable cards are dimmed and marked **RESUPPLY**; the final-minute bonus reads **RESUPPLY x2**. This is a visual theme change only: costs, timing, and placement rules are unchanged.
+During combat, gain 1 **Supply** every 2.8 seconds up to 10, and resupply twice
+as fast in the last minute. The olive-and-steel deployment tray shows costs,
+pending orders, and available Supplies. Base health replaces territory scoring.
 
 Client options:
 
@@ -72,7 +95,9 @@ The server pairs players first come, first served, and runs every match itself, 
 ./build/TurnThemServer --port 7777
 ```
 
-Options: `--match-seconds`, `--countdown-seconds`, `--max-players`. It logs one line when each match starts and ends, and shuts down cleanly on Ctrl-C.
+Options: `--match-seconds`, `--countdown-seconds` (setup duration, default 20),
+`--max-players`. It logs one line when each match starts and ends, and shuts down
+cleanly on Ctrl-C.
 
 To try it locally, start the server, then play against the test bot (or open two game windows):
 
@@ -80,7 +105,9 @@ To try it locally, start the server, then play against the test bot (or open two
 ./build/TurnThemBot --server 127.0.0.1:7777 --count 1
 ```
 
-`TurnThemBot --count N --matches M` also works as a load and soak test. It exits non-zero if any client ever disagrees with the server's board.
+`TurnThemBot --count N --matches M` also works as a load and soak test. It exits
+non-zero if a client's battle checksum disagrees with the server. Checks cover
+the grid, artillery health, main bases, and infantry state.
 
 ### On a Linux VPS
 

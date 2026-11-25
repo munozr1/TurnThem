@@ -22,6 +22,6 @@ struct Vec2 {
 enum class Side : uint8_t { White = 0, Black = 1 };
 inline Side Opponent(Side s) { return s == Side::White ? Side::Black : Side::White; }
 
-enum class WeaponType : uint8_t { Cannon = 0, SCannon = 1, Count };
+enum class WeaponType : uint8_t { Cannon = 0, SCannon = 1, Infantry = 2, Count };
 
 } // namespace tt

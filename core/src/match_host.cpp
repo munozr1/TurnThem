@@ -4,13 +4,14 @@ namespace tt {
 
 MatchHost::MatchHost(uint32_t match_id, const MatchConfig& config) : id_(match_id), match_(config) {
     for (Side side : {Side::White, Side::Black}) {
-        Send(side, MsgMatchStart{id_, side, match_.start_tick(), match_.end_tick(), match_.hand(side), match_.elixir(side)});
+        Send(side, MsgMatchStart{id_, side, match_.start_tick(), match_.end_tick(), match_.hand(side),
+                                 match_.elixir(side), match_.setup_elixir(side)});
     }
 }
 
 void MatchHost::OnClientMessage(Side side, const ClientMsg& msg) {
     if (auto* place = std::get_if<MsgPlaceRequest>(&msg)) {
-        match_.SubmitPlace(side, place->req_id, place->slot, place->col, place->row, place->expected);
+        match_.SubmitPlace(side, place->req_id, place->slot, place->col, place->row, place->expected, place->setup);
     } else if (std::holds_alternative<MsgLeaveMatch>(msg)) {
         match_.Forfeit(side);
     }
@@ -34,7 +35,7 @@ void MatchHost::Step() {
     shared.tick = tick;
     if (tick % kChecksumEvery == 0) {
         shared.has_checksum = true;
-        shared.checksum = match_.grid().Checksum();
+        shared.checksum = match_.checksum();
     }
     std::vector<std::pair<Side, ServerMsg>> private_msgs;
     const EvMatchEnded* ended = nullptr;
@@ -43,6 +44,8 @@ void MatchHost::Step() {
         else if (auto* e = std::get_if<EvProjSpawned>(&event)) shared.events.push_back(*e);
         else if (auto* e = std::get_if<EvProjHit>(&event)) shared.events.push_back(*e);
         else if (auto* e = std::get_if<EvWeaponHit>(&event)) shared.events.push_back(*e);
+        else if (auto* e = std::get_if<EvSquadPlaced>(&event)) shared.events.push_back(*e);
+        else if (auto* e = std::get_if<EvBattleState>(&event)) shared.events.push_back(*e);
         else if (auto* e = std::get_if<EvPlaceResult>(&event)) private_msgs.push_back({e->to, MsgPlaceResult{e->req_id, e->err, e->weapon_id}});
         else if (auto* e = std::get_if<EvHandSlot>(&event)) private_msgs.push_back({e->to, MsgHandSlot{e->slot, e->type}});
         else ended = &std::get<EvMatchEnded>(event);
