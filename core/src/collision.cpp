@@ -16,7 +16,8 @@ static const float CORNER_EPSILON = 0.01f;
  * (1-2 per tick at normal speeds) and skips nothing in between, so a fast
  * shell can't tunnel through a tile.
  */
-bool DetectTileCollision(const Grid& grid, Vec2 from, Vec2 to, Side side, TileHit& hit) {
+bool DetectTileCollision(const Grid& grid, Vec2 from, Vec2 to, Side side, TileHit& hit,
+                         const std::vector<WeaponState>& weapons) {
     const float cell = (float)kCell;
     const float dx = to.x - from.x;
     const float dy = to.y - from.y;
@@ -47,15 +48,27 @@ bool DetectTileCollision(const Grid& grid, Vec2 from, Vec2 to, Side side, TileHi
     }
     const float span = fmaxf(fabsf(dx), fabsf(dy)); // turns a t difference into ~pixels
 
-    // checks one cell; fills `hit` if it belongs to the other side
+    // A weapon keeps its owner even when the ground below it changes color.
+    // Only occupied cells need a lookup in the placement-ordered weapon array.
     auto is_hit = [&](int c, int r, float t, float nx, float ny) {
         if (!Grid::InBounds(c, r)) return false;
-        if (grid.at(c, r).side == side) return false;
+        const Tile& tile = grid.at(c, r);
+        uint32_t weapon_id = 0;
+        if (tile.occupied) {
+            for (const WeaponState& weapon : weapons) {
+                if (weapon.col == c && weapon.row == r && weapon.side != side && weapon.health > 0) {
+                    weapon_id = weapon.id;
+                    break;
+                }
+            }
+        }
+        if (weapon_id == 0 && tile.side == side) return false;
         t = fminf(fmaxf(t, 0.0f), 1.0f);
         hit.col = c;
         hit.row = r;
         hit.point = {from.x + dx * t, from.y + dy * t};
         hit.normal = {nx, ny};
+        hit.weapon_id = weapon_id;
         return true;
     };
 

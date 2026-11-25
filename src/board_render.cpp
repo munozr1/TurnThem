@@ -1,6 +1,14 @@
 #include "board_render.h"
+#include <algorithm>
 #include <math.h>
 #include "tt/weapons.h"
+
+namespace {
+
+const Color kFriendlyTint = {150, 210, 255, 255};
+const Color kEnemyTint = {255, 115, 115, 255};
+
+} // namespace
 
 GameSprites::GameSprites(Atlas& atlas) : atlas_(atlas) {
     for (int i = 0; i < (int)tt::WeaponType::Count; i++) {
@@ -40,12 +48,17 @@ void DrawHover(int col, int row, bool valid) {
     DrawRectangleRec(rect, valid ? Color{0, 255, 0, 200} : Color{255, 0, 0, 200});
 }
 
-void DrawWeapon(const GameSprites& sprites, const tt::WeaponState& weapon) {
+void DrawWeapon(const GameSprites& sprites, const tt::WeaponState& weapon, tt::Side viewer) {
     const Rectangle frame = sprites.weapon(weapon.type).frames[weapon.anim_frame % tt::kAnimFrames];
     const tt::Vec2 center = tt::CellCenter(weapon.col, weapon.row);
     const Rectangle dest = {center.x, center.y, frame.width, frame.height};
     const Vector2 origin = {frame.width / 2.0f, frame.height / 2.0f};
-    DrawTexturePro(sprites.texture(), frame, dest, origin, tt::SpriteRotationDeg(weapon), WHITE);
+    Color tint = weapon.side == viewer ? kFriendlyTint : kEnemyTint;
+    const float brightness = 0.65f + 0.35f * weapon.health / tt::kWeaponMaxHealth;
+    tint.r = (unsigned char)(tint.r * brightness);
+    tint.g = (unsigned char)(tint.g * brightness);
+    tint.b = (unsigned char)(tint.b * brightness);
+    DrawTexturePro(sprites.texture(), frame, dest, origin, tt::SpriteRotationDeg(weapon), tint);
 }
 
 void DrawGhost(const GameSprites& sprites, const tt::Ghost& ghost, tt::Side side) {
@@ -53,7 +66,20 @@ void DrawGhost(const GameSprites& sprites, const tt::Ghost& ghost, tt::Side side
     const tt::Vec2 center = tt::CellCenter(ghost.col, ghost.row);
     const Rectangle dest = {center.x, center.y, frame.width, frame.height};
     const Vector2 origin = {frame.width / 2.0f, frame.height / 2.0f};
-    DrawTexturePro(sprites.texture(), frame, dest, origin, side == tt::Side::White ? 0.0f : 180.0f, Color{255, 255, 255, 128});
+    Color tint = kFriendlyTint;
+    tint.a = 128;
+    DrawTexturePro(sprites.texture(), frame, dest, origin, side == tt::Side::White ? 0.0f : 180.0f, tint);
+}
+
+void DrawWeaponHealth(const tt::WeaponState& weapon, tt::Side viewer, Vector2 center) {
+    const float health = std::clamp(weapon.health / (float)tt::kWeaponMaxHealth, 0.0f, 1.0f);
+    const Rectangle bar = {std::clamp(center.x - 22.0f, 2.0f, tt::kBoardW - 46.0f),
+                           std::max(2.0f, center.y - 51.0f), 44, 8};
+    const Color fill = health > 0.66f ? Color{80, 215, 100, 255} :
+                       health > 0.33f ? Color{255, 205, 70, 255} : Color{240, 80, 70, 255};
+    DrawRectangleRec(bar, Color{25, 25, 30, 255});
+    DrawRectangleRec({bar.x + 2, bar.y + 2, (bar.width - 4) * health, bar.height - 4}, fill);
+    DrawRectangleLinesEx(bar, 1, weapon.side == viewer ? kFriendlyTint : kEnemyTint);
 }
 
 void DrawProjectile(const GameSprites& sprites, tt::Vec2 pos, tt::Vec2 vel) {

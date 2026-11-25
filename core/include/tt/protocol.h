@@ -9,7 +9,7 @@
 // byte is the message type, all integers little-endian, floats as IEEE-754 bits.
 namespace tt {
 
-constexpr uint32_t kProtocolVersion = 2; // sent as ENet's connect data; 2 = elixir
+constexpr uint32_t kProtocolVersion = 3; // sent as ENet's connect data; 3 = artillery health
 constexpr uint16_t kDefaultPort = 7777;
 constexpr uint32_t kChecksumEvery = 60;  // ticks between grid checksums in TICK
 
@@ -57,7 +57,7 @@ struct MsgPlaceRequest {
 using ClientMsg = std::variant<MsgFindMatch, MsgCancelFind, MsgLeaveMatch, MsgPlaceRequest>;
 
 // server -> client
-using TickEvent = std::variant<EvWeaponPlaced, EvProjSpawned, EvProjHit>;
+using TickEvent = std::variant<EvWeaponPlaced, EvProjSpawned, EvProjHit, EvWeaponHit>;
 struct MsgQueued {};
 struct MsgMatchStart {
     uint32_t match_id;

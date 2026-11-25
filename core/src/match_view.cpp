@@ -39,16 +39,19 @@ void MatchView::OnMessage(const ServerMsg& msg, double now_s) {
         clock_.OnTick(tick->tick, now_s);
         // note where projectiles will stop, so playback never draws them past it
         for (const TickEvent& event : tick->events) {
-            if (auto* hit = std::get_if<EvProjHit>(&event)) {
-                auto it = std::find_if(projectiles_.begin(), projectiles_.end(),
-                                       [&](const ViewProjectile& p) { return p.id == hit->proj_id; });
-                if (it != projectiles_.end()) {
-                    it->hit_known = true;
-                    it->hit_point = hit->point;
-                } else {
-                    early_hits_[hit->proj_id] = hit->point;
+            std::visit([&](const auto& hit) {
+                using T = std::decay_t<decltype(hit)>;
+                if constexpr (std::is_same_v<T, EvProjHit> || std::is_same_v<T, EvWeaponHit>) {
+                    auto it = std::find_if(projectiles_.begin(), projectiles_.end(),
+                                           [&](const ViewProjectile& p) { return p.id == hit.proj_id; });
+                    if (it != projectiles_.end()) {
+                        it->hit_known = true;
+                        it->hit_point = hit.point;
+                    } else {
+                        early_hits_[hit.proj_id] = hit.point;
+                    }
                 }
-            }
+            }, event);
         }
         buffered_.push_back(*tick);
     } else if (auto* result = std::get_if<MsgPlaceResult>(&msg)) {
@@ -108,6 +111,19 @@ void MatchView::ApplyTick(const MsgTick& tick) {
             // a hit always lands on a tile the shooter doesn't own, so it flips
             Tile& tile = grid_.at(hit->col, hit->row);
             tile.side = Opponent(tile.side);
+            projectiles_.erase(std::remove_if(projectiles_.begin(), projectiles_.end(),
+                                              [&](const ViewProjectile& p) { return p.id == hit->proj_id; }),
+                               projectiles_.end());
+        } else if (auto* hit = std::get_if<EvWeaponHit>(&event)) {
+            auto weapon = std::find_if(weapons_.begin(), weapons_.end(),
+                                       [&](const WeaponState& w) { return w.id == hit->weapon_id; });
+            if (weapon != weapons_.end()) {
+                weapon->health = hit->health;
+                if (weapon->health == 0) {
+                    grid_.RemoveWeapon(weapon->col, weapon->row);
+                    weapons_.erase(weapon);
+                }
+            }
             projectiles_.erase(std::remove_if(projectiles_.begin(), projectiles_.end(),
                                               [&](const ViewProjectile& p) { return p.id == hit->proj_id; }),
                                projectiles_.end());

@@ -23,6 +23,8 @@ public:
 
     // occupy (col,row) and pad its 8 neighbours
     void MarkWeapon(int col, int row);
+    // release its cell and clearance, retaining padding shared by other weapons
+    void RemoveWeapon(int col, int row);
     int Count(Side side) const;
     // FNV-1a over every tile's side/occupied/padding, for desync checks
     uint32_t Checksum() const;

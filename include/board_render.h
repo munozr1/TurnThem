@@ -32,6 +32,9 @@ inline Vector2 ToRay(tt::Vec2 v) { return {v.x, v.y}; }
 // all in board (world) coordinates; the caller sets up the camera
 void DrawBoard(const tt::Grid& grid);
 void DrawHover(int col, int row, bool valid);
-void DrawWeapon(const GameSprites& sprites, const tt::WeaponState& weapon);
+void DrawWeapon(const GameSprites& sprites, const tt::WeaponState& weapon, tt::Side viewer);
 void DrawGhost(const GameSprites& sprites, const tt::Ghost& ghost, tt::Side side);
 void DrawProjectile(const GameSprites& sprites, tt::Vec2 pos, tt::Vec2 vel);
+
+// Screen coordinates keep health bars upright and above weapons for either player.
+void DrawWeaponHealth(const tt::WeaponState& weapon, tt::Side viewer, Vector2 center);

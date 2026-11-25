@@ -25,6 +25,25 @@ void Grid::MarkWeapon(int col, int row) {
     }
 }
 
+void Grid::RemoveWeapon(int col, int row) {
+    if (!InBounds(col, row)) return;
+    at(col, row).occupied = false;
+    for (int r = row - 1; r <= row + 1; r++) {
+        for (int c = col - 1; c <= col + 1; c++) {
+            if (!InBounds(c, r)) continue;
+            bool padding = false;
+            for (int dr = -1; dr <= 1; dr++) {
+                for (int dc = -1; dc <= 1; dc++) {
+                    if ((dc != 0 || dr != 0) && InBounds(c + dc, r + dr)) {
+                        padding |= at(c + dc, r + dr).occupied;
+                    }
+                }
+            }
+            at(c, r).padding = padding;
+        }
+    }
+}
+
 int Grid::Count(Side side) const {
     int count = 0;
     for (const Tile& tile : tiles_) count += tile.side == side;

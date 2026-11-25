@@ -33,6 +33,8 @@ MsgTick SampleTick() {
     tick.events.push_back(EvWeaponPlaced{7, WeaponType::SCannon, Side::Black, 12, 19});
     tick.events.push_back(EvProjSpawned{9, 7, {260.5f, -12.25f}, {-353.55f, 353.55f}});
     tick.events.push_back(EvProjHit{9, 0, 0, {1.5f, 39.75f}});
+    tick.events.push_back(EvWeaponHit{10, 7, 65, {480.0f, 760.0f}});
+    tick.events.push_back(EvWeaponHit{11, 7, 0, {480.0f, 760.0f}});
     return tick;
 }
 
@@ -59,10 +61,16 @@ TEST_CASE("server messages round-trip") {
     CHECK(start.hand[1] == WeaponType::SCannon);
 
     const auto tick = std::get<MsgTick>(RoundTrip(ServerMsg{SampleTick()}));
-    REQUIRE(tick.events.size() == 3);
+    REQUIRE(tick.events.size() == 5);
     CHECK(tick.checksum == 0xDEADBEEF);
     CHECK(std::get<EvProjSpawned>(tick.events[1]).vel.x == -353.55f);
     CHECK(std::get<EvProjHit>(tick.events[2]).point.y == 39.75f);
+    const auto damaged = std::get<EvWeaponHit>(tick.events[3]);
+    CHECK(damaged.proj_id == 10);
+    CHECK(damaged.weapon_id == 7);
+    CHECK(damaged.health == 65);
+    CHECK(damaged.point.x == 480.0f);
+    CHECK(std::get<EvWeaponHit>(tick.events[4]).health == 0);
 
     MsgTick empty;
     empty.tick = 1;
@@ -97,6 +105,12 @@ TEST_CASE("out-of-range values are rejected") {
     tick.events = {EvProjHit{1, 13, 0, {0, 0}}}; // column 13 doesn't exist
     CHECK(rejects_server(Encode(ServerMsg{tick})));
     tick.events = {EvProjSpawned{1, 1, {NAN, 0}, {0, 0}}};
+    CHECK(rejects_server(Encode(ServerMsg{tick})));
+    tick.events = {EvWeaponHit{1, 1, kWeaponMaxHealth + 1, {0, 0}}};
+    CHECK(rejects_server(Encode(ServerMsg{tick})));
+    tick.events = {EvWeaponHit{1, 1, 65, {NAN, 0}}};
+    CHECK(rejects_server(Encode(ServerMsg{tick})));
+    tick.events = {EvWeaponHit{1, 1, 65, {0, INFINITY}}};
     CHECK(rejects_server(Encode(ServerMsg{tick})));
 }
 

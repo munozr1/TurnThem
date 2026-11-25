@@ -6,6 +6,8 @@ namespace tt {
 // Gameplay constants, in ticks at kTickRate. These reproduce the original
 // Cannon/SCannon timing (which mixed GetTime() and per-frame counters) at 60 fps.
 constexpr int kAnimFrames = 3;
+constexpr uint16_t kWeaponMaxHealth = 100;
+constexpr uint16_t kProjectileDamage = 35; // three direct hits defeat either artillery type
 constexpr int kAnimTicksPerFrame = 10;
 constexpr int kCannonFireInterval = 30;      // 0.5 s
 constexpr float kCannonSpeed = 800.0f;       // px/s
@@ -26,6 +28,7 @@ struct WeaponState {
     uint8_t col = 0, row = 0;
     uint32_t placed_tick = 0;
     uint32_t age = 0;           // ticks stepped so far
+    uint16_t health = kWeaponMaxHealth;
     // SCannon sweep state (a Cannon only uses age)
     Phase phase = Phase::Rotating;
     int angle_deg = 0;          // barrel angle in the owner's frame, 0 = straight at the enemy

@@ -35,13 +35,14 @@ struct ProjectileState {
 struct EvWeaponPlaced { uint32_t weapon_id; WeaponType type; Side side; uint8_t col, row; };
 struct EvProjSpawned { uint32_t proj_id; uint32_t weapon_id; Vec2 pos; Vec2 vel; };
 struct EvProjHit { uint32_t proj_id; uint8_t col, row; Vec2 point; }; // tile becomes the shooter's color
+struct EvWeaponHit { uint32_t proj_id, weapon_id; uint16_t health; Vec2 point; }; // zero health removes the weapon
 // only for `to`
 struct EvPlaceResult { Side to; uint32_t req_id; PlaceError err; uint32_t weapon_id; };
 struct EvHandSlot { Side to; uint8_t slot; WeaponType type; };
 // end of the match
 struct EvMatchEnded { EndReason reason; Winner winner; uint16_t white, black; };
 
-using Event = std::variant<EvWeaponPlaced, EvProjSpawned, EvProjHit, EvPlaceResult, EvHandSlot, EvMatchEnded>;
+using Event = std::variant<EvWeaponPlaced, EvProjSpawned, EvProjHit, EvWeaponHit, EvPlaceResult, EvHandSlot, EvMatchEnded>;
 
 // The authoritative simulation of one match. Runs headless at kTickRate; the
 // server owns one per match and clients only ever see its events.
