@@ -4,6 +4,8 @@ A 2D "Breakout PvP" game built with Raylib. Two players place cannons on their
 own colour; every shell converts the first enemy tile it hits. Whoever owns more
 of the arena when the 3-minute timer runs out wins.
 
+Working on a feature or fix? Start with the [contribution guide](CONTRIBUTING.md) to choose a branch, check your change, and open a pull request.
+
 ## Build Instructions
 
 ### Prerequisites
@@ -16,7 +18,7 @@ of the arena when the 3-minute timer runs out wins.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/TurnThem.git
+   git clone https://github.com/munozr1/TurnThem.git
    cd TurnThem
    ```
 
