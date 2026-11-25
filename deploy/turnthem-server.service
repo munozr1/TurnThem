@@ -1,0 +1,24 @@
+# systemd unit for the TurnThem match server.
+# Copy to /etc/systemd/system/, adjust User and ExecStart, then:
+#   sudo systemctl enable --now turnthem-server
+[Unit]
+Description=TurnThem match server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=turnthem
+ExecStart=/opt/turnthem/TurnThemServer --port 7777
+Restart=always
+RestartSec=2
+# SIGINT lets the server tell connected players it is shutting down
+KillSignal=SIGINT
+TimeoutStopSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
