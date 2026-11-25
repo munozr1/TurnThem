@@ -2,6 +2,8 @@
 
 A 2D game built with Raylib where you control cannons and projectiles.
 
+Working on a feature or fix? Start with the [contribution guide](CONTRIBUTING.md) to choose a branch, check your change, and open a pull request.
+
 ## Build Instructions
 
 ### Prerequisites
@@ -13,7 +15,7 @@ A 2D game built with Raylib where you control cannons and projectiles.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/TurnThem.git
+   git clone https://github.com/munozr1/TurnThem.git
    cd TurnThem
    ```
 
