@@ -1,4 +1,5 @@
 #include "deck.h"
+#include "supply_theme.h"
 
 Deck::Deck(const GameSprites& sprites, float y) : sprites_(sprites), position_{10.0f, y} {}
 
@@ -20,21 +21,43 @@ int Deck::SlotAt(Vector2 point, const Hand& hand) const {
 }
 
 void Deck::Draw(const Hand& hand, int dragging, tt::ElixirPoints available) const {
-    DrawTextureRec(sprites_.texture(), sprites_.deck(), position_, WHITE);
+    using namespace supply_ui;
+    const Rectangle deck = sprites_.deck();
+    const Rectangle tray = {position_.x, position_.y, deck.width, deck.height};
+    DrawRectangleRec({0, position_.y, (float)kScreenW, deck.height}, kSteel);
+    DrawRectangleRec(tray, kShadow);
+    DrawRectangleLinesEx(tray, 2, kEdge);
+    // Riveted steel surrounds the same four deployment slots and hitboxes.
+    for (float x : {tray.x + 6, tray.x + tray.width - 6}) {
+        for (float y : {tray.y + 6, tray.y + tray.height - 6}) {
+            DrawCircleV({x, y}, 2, kKhaki);
+        }
+    }
     for (int i = 0; i < tt::kHandSize; i++) {
-        if (!hand[i].type || i == dragging) continue;
         const Rectangle slot = SlotRect(i);
+        DrawRectangleRec(slot, kSteel);
+        DrawRectangleLinesEx(slot, 2, kEdge);
+        if (!hand[i].type || i == dragging) continue;
         // a spent card stays dimmed until the server deals its replacement; an
-        // unaffordable one until the elixir is there
+        // unaffordable one until the supplies arrive
         const bool affordable = available >= tt::CardCostPoints(*hand[i].type);
-        const Color tint = hand[i].pending ? Color{255, 255, 255, 90} : affordable ? WHITE : Color{150, 150, 150, 255};
-        DrawTextureRec(sprites_.texture(), sprites_.weapon(*hand[i].type).card, {slot.x, slot.y}, tint);
-        // elixir cost badge in the top-left corner
-        const Vector2 badge = {slot.x + 10, slot.y + 10};
-        DrawCircleV(badge, 12, Color{120, 30, 160, 255});
-        DrawCircleV(badge, 10, Color{190, 70, 230, 255});
+        const bool ready = affordable && !hand[i].pending;
+        DrawRectangleRec({slot.x + 3, slot.y + 3, slot.width - 6, slot.height - 6}, ready ? kOlive : kSteel);
+        // Reuse the atlas silhouette on a field-equipment plate.
+        const Rectangle frame = sprites_.weapon(*hand[i].type).frames[0];
+        const Vector2 pos = {slot.x + (slot.width - frame.width) / 2, slot.y + 30};
+        DrawTextureRec(sprites_.texture(), frame, pos, ready ? kInk : Color{125, 133, 120, 170});
+
+        const Rectangle badge = {slot.x + 5, slot.y + 5, 42, 22};
+        DrawRectangleRec(badge, ready ? kKhaki : kMuted);
+        DrawCrate({badge.x + 4, badge.y + 5, 15, 12}, kOlive);
         const char* cost = TextFormat("%d", tt::CardCost(*hand[i].type));
-        DrawText(cost, (int)badge.x - MeasureText(cost, 16) / 2, (int)badge.y - 8, 16, RAYWHITE);
+        DrawText(cost, (int)badge.x + 25, (int)badge.y + 3, 16, kShadow);
+        const char* label = hand[i].pending ? "PENDING" : !affordable ? "RESUPPLY" :
+                            *hand[i].type == tt::WeaponType::Cannon ? "CANNON" : "S-CANNON";
+        DrawRectangleRec({slot.x + 3, slot.y + slot.height - 23, slot.width - 6, 20}, kShadow);
+        DrawText(label, (int)(slot.x + (slot.width - MeasureText(label, 14)) / 2),
+                 (int)(slot.y + slot.height - 20), 14, ready ? kInk : kMuted);
     }
 }
 
