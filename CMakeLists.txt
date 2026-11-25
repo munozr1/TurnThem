@@ -45,6 +45,7 @@ endfunction()
 # Simulation, protocol and client-side match state: plain C++, no raylib or enet,
 # so the server builds on a headless box
 add_library(turnthem_core STATIC
+    core/src/battle.cpp
     core/src/grid.cpp
     core/src/collision.cpp
     core/src/weapons.cpp
@@ -122,6 +123,7 @@ if(TURNTHEM_BUILD_TESTS)
     enable_testing()
     add_executable(turnthem_tests
         tests/main.cpp
+        tests/test_battle.cpp
         tests/test_grid.cpp
         tests/test_collision.cpp
         tests/test_weapons.cpp

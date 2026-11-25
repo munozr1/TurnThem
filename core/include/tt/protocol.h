@@ -9,9 +9,9 @@
 // byte is the message type, all integers little-endian, floats as IEEE-754 bits.
 namespace tt {
 
-constexpr uint32_t kProtocolVersion = 3; // sent as ENet's connect data; 3 = artillery health
+constexpr uint32_t kProtocolVersion = 4; // setup, headquarters and infantry squads
 constexpr uint16_t kDefaultPort = 7777;
-constexpr uint32_t kChecksumEvery = 60;  // ticks between grid checksums in TICK
+constexpr uint32_t kChecksumEvery = 60;  // ticks between battle-state checksums
 
 // ENet disconnect data
 enum class DisconnectCode : uint32_t { None = 0, VersionMismatch = 1, ProtocolError = 2, Shutdown = 3, ServerFull = 4 };
@@ -53,11 +53,12 @@ struct MsgPlaceRequest {
     uint32_t req_id;
     uint8_t slot, col, row;
     WeaponType expected; // what the client thinks is in the slot
+    bool setup = false; // reject delayed setup requests once combat has begun
 };
 using ClientMsg = std::variant<MsgFindMatch, MsgCancelFind, MsgLeaveMatch, MsgPlaceRequest>;
 
 // server -> client
-using TickEvent = std::variant<EvWeaponPlaced, EvProjSpawned, EvProjHit, EvWeaponHit>;
+using TickEvent = std::variant<EvWeaponPlaced, EvProjSpawned, EvProjHit, EvWeaponHit, EvSquadPlaced, EvBattleState>;
 struct MsgQueued {};
 struct MsgMatchStart {
     uint32_t match_id;
@@ -65,12 +66,13 @@ struct MsgMatchStart {
     uint32_t start_tick, end_tick;
     Hand hand;
     ElixirPoints start_elixir = kStartElixirPoints; // the client mirrors elixir from here
+    ElixirPoints setup_elixir = ElixirToPoints(6);
 };
 // sent every tick, events or not: it is also the clock
 struct MsgTick {
     uint32_t tick = 0;
     bool has_checksum = false;
-    uint32_t checksum = 0; // Grid::Checksum() after this tick
+    uint32_t checksum = 0; // BattleChecksum() after this tick
     std::vector<TickEvent> events;
 };
 struct MsgPlaceResult {

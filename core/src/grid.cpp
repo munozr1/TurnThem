@@ -10,6 +10,9 @@ Grid Grid::Initial() {
             grid.at(col, row).side = (row >= kRows / 2) ? Side::White : Side::Black;
         }
     }
+    // The standardized arena reserves both headquarters and their clearance.
+    grid.MarkWeapon(kCols / 2, 1);
+    grid.MarkWeapon(kCols / 2, kRows - 2);
     return grid;
 }
 
@@ -76,11 +79,13 @@ const char* PlaceErrorText(PlaceError err) {
         case PlaceError::BadSlot: return "no such card";
         case PlaceError::HandMismatch: return "card changed";
         case PlaceError::OutOfBounds: return "off the board";
-        case PlaceError::NotOwnTile: return "not your tile";
+        case PlaceError::NotOwnTile: return "outside your deployment zone";
         case PlaceError::Occupied: return "tile occupied";
         case PlaceError::Padding: return "too close to a weapon";
         case PlaceError::RateLimited: return "too fast";
         case PlaceError::NotEnoughElixir: return "not enough supplies";
+        case PlaceError::SetupArtilleryOnly: return "artillery only during setup";
+        case PlaceError::UnitLimit: return "infantry limit reached";
         case PlaceError::Count: break;
     }
     return "unknown";
@@ -89,10 +94,14 @@ const char* PlaceErrorText(PlaceError err) {
 PlaceError ValidatePlacement(const Grid& grid, Side side, int col, int row) {
     if (!Grid::InBounds(col, row)) return PlaceError::OutOfBounds;
     const Tile& tile = grid.at(col, row);
-    if (tile.side != side) return PlaceError::NotOwnTile;
+    if (!InDeploymentZone(side, col, row)) return PlaceError::NotOwnTile;
     if (tile.occupied) return PlaceError::Occupied;
     if (tile.padding) return PlaceError::Padding;
     return PlaceError::Ok;
+}
+
+bool InDeploymentZone(Side side, int col, int row) {
+    return Grid::InBounds(col, row) && (side == Side::White ? row >= kRows / 2 : row < kRows / 2);
 }
 
 } // namespace tt

@@ -122,6 +122,7 @@ bool StepWeapon(WeaponState& weapon, Shot* shot) {
     switch (weapon.type) {
         case WeaponType::Cannon: return StepCannon(weapon, shot);
         case WeaponType::SCannon: return StepSCannon(weapon, shot);
+        case WeaponType::Infantry: break; // infantry lives in Match's mobile array
         case WeaponType::Count: break;
     }
     weapon.age++;

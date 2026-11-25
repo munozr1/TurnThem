@@ -30,6 +30,7 @@ const char* ReasonText(EndReason reason) {
         case EndReason::Timer: return "timer";
         case EndReason::Forfeit: return "forfeit";
         case EndReason::Cancelled: return "cancelled";
+        case EndReason::BaseDestroyed: return "base destroyed";
         default: return "?";
     }
 }

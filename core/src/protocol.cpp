@@ -22,7 +22,8 @@ enum MsgType : uint8_t {
     kMatchEnd = 0x86,
 };
 
-enum EventType : uint8_t { kWeaponPlaced = 1, kProjSpawn = 2, kProjHit = 3, kWeaponHit = 4 };
+enum EventType : uint8_t { kWeaponPlaced = 1, kProjSpawn = 2, kProjHit = 3, kWeaponHit = 4,
+                           kSquadPlaced = 5, kBattleState = 6 };
 
 // readers that reject out-of-range enums and cells
 bool ReadSide(ByteReader& in, Side& side) {
@@ -48,6 +49,64 @@ bool ReadVec(ByteReader& in, Vec2& v) {
 void WriteVec(ByteWriter& out, Vec2 v) {
     out.f32(v.x);
     out.f32(v.y);
+}
+
+bool ReadBoardPosition(ByteReader& in, Vec2& pos) {
+    return ReadVec(in, pos) && pos.x >= 0 && pos.x <= kBoardW && pos.y >= 0 && pos.y <= kBoardH;
+}
+
+void WriteBattleState(ByteWriter& out, const EvBattleState& state) {
+    for (const HeadquartersState& base : state.bases) {
+        out.u32(base.id);
+        out.u8((uint8_t)base.side);
+        WriteVec(out, base.pos);
+        out.u16(base.health);
+    }
+    out.u16((uint16_t)state.infantry.size());
+    for (const InfantryState& unit : state.infantry) {
+        out.u32(unit.id);
+        out.u8((uint8_t)unit.side);
+        WriteVec(out, unit.pos);
+        out.u16(unit.health);
+        out.u8((uint8_t)unit.target_kind);
+        out.u32(unit.target_id);
+        out.u8((uint8_t)unit.phase);
+        out.u16(unit.cooldown);
+    }
+}
+
+bool ReadBattleState(ByteReader& in, EvBattleState& state) {
+    const auto initial = MakeHeadquarters();
+    for (size_t i = 0; i < state.bases.size(); i++) {
+        HeadquartersState& base = state.bases[i];
+        base.id = in.u32();
+        if (!ReadSide(in, base.side) || !ReadBoardPosition(in, base.pos)) return false;
+        base.health = in.u16();
+        if (base.id != initial[i].id || base.side != initial[i].side || base.health > kBaseMaxHealth ||
+            base.pos.x != initial[i].pos.x || base.pos.y != initial[i].pos.y) return false;
+    }
+    const uint16_t count = in.u16();
+    if (count > 2 * kMaxInfantryPerSide) return false;
+    std::array<int, 2> counts{};
+    state.infantry.reserve(count);
+    for (uint16_t i = 0; i < count && in.ok(); i++) {
+        InfantryState unit;
+        unit.id = in.u32();
+        if (!unit.id || !ReadSide(in, unit.side) || !ReadBoardPosition(in, unit.pos)) return false;
+        unit.health = in.u16();
+        const uint8_t target = in.u8();
+        unit.target_id = in.u32();
+        const uint8_t phase = in.u8();
+        unit.cooldown = in.u16();
+        if (!unit.health || unit.health > kInfantryMaxHealth || target >= (uint8_t)CombatTargetKind::Count ||
+            phase >= (uint8_t)InfantryPhase::Count || unit.cooldown > kInfantryAttackTicks ||
+            ++counts[(int)unit.side] > kMaxInfantryPerSide) return false;
+        for (const InfantryState& previous : state.infantry) if (previous.id == unit.id) return false;
+        unit.target_kind = (CombatTargetKind)target;
+        unit.phase = (InfantryPhase)phase;
+        state.infantry.push_back(unit);
+    }
+    return in.ok();
 }
 
 } // namespace
@@ -121,6 +180,7 @@ std::vector<uint8_t> Encode(const ClientMsg& msg) {
             out.u8(m.col);
             out.u8(m.row);
             out.u8((uint8_t)m.expected);
+            out.u8(m.setup ? 1 : 0);
         }
     }, msg);
     return std::move(out.bytes);
@@ -140,6 +200,7 @@ std::vector<uint8_t> Encode(const ServerMsg& msg) {
             out.u32(m.end_tick);
             for (WeaponType card : m.hand) out.u8((uint8_t)card);
             out.u16((uint16_t)m.start_elixir);
+            out.u16((uint16_t)m.setup_elixir);
         } else if constexpr (std::is_same_v<T, MsgTick>) {
             out.u8(kTick);
             out.u32(m.tick);
@@ -168,12 +229,21 @@ std::vector<uint8_t> Encode(const ServerMsg& msg) {
                         out.u8(e.col);
                         out.u8(e.row);
                         WriteVec(out, e.point);
-                    } else {
+                    } else if constexpr (std::is_same_v<E, EvWeaponHit>) {
                         out.u8(kWeaponHit);
                         out.u32(e.proj_id);
                         out.u32(e.weapon_id);
                         out.u16(e.health);
                         WriteVec(out, e.point);
+                    } else if constexpr (std::is_same_v<E, EvSquadPlaced>) {
+                        out.u8(kSquadPlaced);
+                        out.u32(e.squad_id);
+                        out.u8((uint8_t)e.side);
+                        out.u8(e.col);
+                        out.u8(e.row);
+                    } else {
+                        out.u8(kBattleState);
+                        WriteBattleState(out, e);
                     }
                 }, event);
             }
@@ -211,6 +281,9 @@ bool Decode(const uint8_t* data, size_t size, ClientMsg& out) {
             m.col = in.u8(); // the simulation reports bad cells/slots as PlaceErrors
             m.row = in.u8();
             if (!ReadWeaponType(in, m.expected)) return false;
+            const uint8_t setup = in.u8();
+            if (setup > 1) return false;
+            m.setup = setup != 0;
             out = m;
             break;
         }
@@ -232,7 +305,8 @@ bool Decode(const uint8_t* data, size_t size, ServerMsg& out) {
             for (WeaponType& card : m.hand)
                 if (!ReadWeaponType(in, card)) return false;
             m.start_elixir = in.u16();
-            if (m.end_tick < m.start_tick || m.start_elixir > kMaxElixirPoints) return false;
+            m.setup_elixir = in.u16();
+            if (m.end_tick < m.start_tick || m.start_elixir > kMaxElixirPoints || m.setup_elixir > kMaxElixirPoints) return false;
             out = m;
             break;
         }
@@ -252,6 +326,7 @@ bool Decode(const uint8_t* data, size_t size, ServerMsg& out) {
                         EvWeaponPlaced e;
                         e.weapon_id = in.u32();
                         if (!ReadWeaponType(in, e.type) || !ReadSide(in, e.side) || !ReadCell(in, e.col, e.row)) return false;
+                        if (!e.weapon_id || e.type == WeaponType::Infantry) return false;
                         m.events.push_back(e);
                         break;
                     }
@@ -277,6 +352,19 @@ bool Decode(const uint8_t* data, size_t size, ServerMsg& out) {
                         e.health = in.u16();
                         if (e.health > kWeaponMaxHealth || !ReadVec(in, e.point)) return false;
                         m.events.push_back(e);
+                        break;
+                    }
+                    case kSquadPlaced: {
+                        EvSquadPlaced e;
+                        e.squad_id = in.u32();
+                        if (!e.squad_id || !ReadSide(in, e.side) || !ReadCell(in, e.col, e.row)) return false;
+                        m.events.push_back(e);
+                        break;
+                    }
+                    case kBattleState: {
+                        EvBattleState e;
+                        if (!ReadBattleState(in, e)) return false;
+                        m.events.push_back(std::move(e));
                         break;
                     }
                     default: return false;

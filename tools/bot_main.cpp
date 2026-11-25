@@ -1,6 +1,6 @@
 // TurnThemBot: headless players for testing a server. Runs N bots in one
 // process, each on its own ENet connection; they queue, play with the bot
-// policy and check every grid checksum. Exits non-zero on a desync, a
+// policy and check every battle checksum. Exits non-zero on a desync, a
 // protocol error or an unexpected disconnect.
 #include <chrono>
 #include <cstdio>
@@ -42,6 +42,7 @@ const char* ReasonText(tt::EndReason reason) {
         case tt::EndReason::Timer: return "timer";
         case tt::EndReason::Forfeit: return "forfeit";
         case tt::EndReason::Cancelled: return "cancelled";
+        case tt::EndReason::BaseDestroyed: return "base destroyed";
         default: return "?";
     }
 }
@@ -139,7 +140,7 @@ int main(int argc, char** argv) {
                 results++;
                 slot.played++;
                 const bool desync = view.checksum_mismatches() > 0;
-                std::printf("bot %d: match %u as %s: %s, %s (white %u, black %u); placed %d, rejected %d; "
+                std::printf("bot %d: match %u as %s: %s, %s (HQ health: white %u, black %u); placed %d, rejected %d; "
                             "checksums %d ok, %d bad%s\n",
                             slot.index, view.match_id(), SideText(view.side()), ReasonText(result->reason),
                             WinnerText(result->winner), result->white, result->black, slot.bot->placed(),
