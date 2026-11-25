@@ -67,3 +67,35 @@ TEST_CASE("Checksum tracks tile state") {
     b.MarkWeapon(3, 15);
     CHECK(a.Checksum() != b.Checksum());
 }
+
+TEST_CASE("removing a weapon frees its cell and padding without changing territory") {
+    for (const auto& cell : {std::array<int, 2>{0, 0}, {6, 12}, {12, 19}}) {
+        const Grid initial = Grid::Initial();
+        Grid grid = initial;
+        grid.MarkWeapon(cell[0], cell[1]);
+        grid.RemoveWeapon(cell[0], cell[1]);
+        CHECK(grid.Checksum() == initial.Checksum());
+        grid.RemoveWeapon(cell[0], cell[1]);
+        CHECK(grid.Checksum() == initial.Checksum());
+    }
+}
+
+TEST_CASE("removing artillery preserves overlapping clearance from surviving weapons") {
+    Grid grid = Grid::Initial();
+    grid.MarkWeapon(4, 12);
+    grid.MarkWeapon(6, 12);
+    grid.RemoveWeapon(4, 12);
+
+    Grid expected = Grid::Initial();
+    expected.MarkWeapon(6, 12);
+    CHECK(grid.Checksum() == expected.Checksum());
+    CHECK(ValidatePlacement(grid, Side::White, 4, 12) == PlaceError::Ok);
+    CHECK(ValidatePlacement(grid, Side::White, 5, 12) == PlaceError::Padding);
+    CHECK(ValidatePlacement(grid, Side::White, 6, 12) == PlaceError::Occupied);
+
+    grid.RemoveWeapon(-1, 12);
+    grid.RemoveWeapon(13, 12);
+    CHECK(grid.Checksum() == expected.Checksum());
+    grid.RemoveWeapon(6, 12);
+    CHECK(grid.Checksum() == Grid::Initial().Checksum());
+}

@@ -93,3 +93,75 @@ TEST_CASE("a long segment walks every own tile and stops at the first enemy one"
     CHECK((hit.col == 6 && hit.row == 2));
     CHECK(hit.point.y == doctest::Approx(120));
 }
+
+TEST_CASE("artillery takes the hit before its tile, regardless of tile ownership") {
+    for (Side shooter : {Side::White, Side::Black}) {
+        for (Side ground : {Side::White, Side::Black}) {
+            Grid grid = Filled(shooter);
+            grid.at(6, 6).side = ground;
+            grid.MarkWeapon(6, 6);
+            const std::vector<WeaponState> weapons = {
+                MakeWeapon(7, WeaponType::SCannon, Opponent(shooter), 6, 6, 0)
+            };
+            TileHit hit;
+            REQUIRE(DetectTileCollision(grid, {260, 340}, {260, 180}, shooter, hit, weapons));
+            CHECK(hit.weapon_id == 7);
+            CHECK((hit.col == 6 && hit.row == 6));
+            CHECK(hit.point.y == doctest::Approx(280));
+            CHECK(grid.at(6, 6).side == ground); // collision is read-only
+        }
+    }
+}
+
+TEST_CASE("shots pass friendly artillery and hit the nearest enemy in path order") {
+    Grid grid = Filled(Side::White);
+    const std::vector<WeaponState> weapons = {
+        MakeWeapon(1, WeaponType::Cannon, Side::Black, 6, 2, 0),
+        MakeWeapon(2, WeaponType::Cannon, Side::White, 6, 8, 0),
+        MakeWeapon(3, WeaponType::Cannon, Side::Black, 6, 5, 0)
+    };
+    for (const WeaponState& weapon : weapons) grid.MarkWeapon(weapon.col, weapon.row);
+    TileHit hit;
+    REQUIRE(DetectTileCollision(grid, {260, 380}, {260, 0}, Side::White, hit, weapons));
+    CHECK(hit.weapon_id == 3);
+    CHECK(hit.row == 5);
+
+    // Enemy terrain still stops the shot before it reaches a farther weapon.
+    grid.at(6, 7).side = Side::Black;
+    REQUIRE(DetectTileCollision(grid, {260, 380}, {260, 0}, Side::White, hit, weapons));
+    CHECK(hit.weapon_id == 0);
+    CHECK(hit.row == 7);
+}
+
+TEST_CASE("friendly artillery on enemy ground is a terrain hit, never friendly fire") {
+    Grid grid = Filled(Side::White);
+    grid.at(6, 6).side = Side::Black;
+    grid.MarkWeapon(6, 6);
+    const std::vector<WeaponState> weapons = {
+        MakeWeapon(4, WeaponType::Cannon, Side::White, 6, 6, 0)
+    };
+    TileHit hit;
+    REQUIRE(DetectTileCollision(grid, {260, 260}, {260, 250}, Side::White, hit, weapons));
+    CHECK(hit.weapon_id == 0);
+    CHECK(hit.row == 6);
+}
+
+TEST_CASE("artillery collision covers starting cells and split diagonal corner crossings") {
+    Grid grid = Filled(Side::White);
+    grid.MarkWeapon(2, 6);
+    std::vector<WeaponState> weapons = {
+        MakeWeapon(9, WeaponType::SCannon, Side::Black, 2, 6, 0)
+    };
+    TileHit hit;
+    REQUIRE(DetectTileCollision(grid, {100, 260}, {100, 260}, Side::White, hit, weapons));
+    CHECK(hit.weapon_id == 9);
+
+    const bool first = DetectTileCollision(grid, {100, 300}, {120, 280}, Side::White, hit, weapons);
+    const bool second = !first && DetectTileCollision(grid, {120, 280}, {140, 260}, Side::White, hit, weapons);
+    REQUIRE((first || second));
+    CHECK(hit.weapon_id == 9);
+    CHECK((hit.col == 2 && hit.row == 6));
+
+    weapons[0].health = 0;
+    CHECK(!DetectTileCollision(grid, {100, 260}, {100, 260}, Side::White, hit, weapons));
+}

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <map>
 #include <sstream>
 #include <string>
@@ -50,6 +51,7 @@ std::string Describe(const std::vector<Event>& events) {
             if constexpr (std::is_same_v<T, EvWeaponPlaced>) out << "W" << v.weapon_id << ":" << (int)v.col << "," << (int)v.row;
             else if constexpr (std::is_same_v<T, EvProjSpawned>) out << "S" << v.proj_id << ":" << v.pos.x << "," << v.pos.y;
             else if constexpr (std::is_same_v<T, EvProjHit>) out << "H" << v.proj_id << ":" << (int)v.col << "," << (int)v.row;
+            else if constexpr (std::is_same_v<T, EvWeaponHit>) out << "D" << v.proj_id << ":" << v.weapon_id << "," << v.health;
             else if constexpr (std::is_same_v<T, EvPlaceResult>) out << "R" << v.req_id << ":" << (int)v.err;
             else if constexpr (std::is_same_v<T, EvHandSlot>) out << "C" << (int)v.slot << ":" << (int)v.type;
             else out << "E" << (int)v.reason << ":" << (int)v.winner;
@@ -228,4 +230,68 @@ TEST_CASE("same seed and same inputs give the same match") {
         return Describe(events) + std::to_string(match.grid().Checksum());
     };
     CHECK(play(7) == play(7));
+}
+
+TEST_CASE("artillery loses health on direct hits and is removed before it can fire again") {
+    for (Side attacker : {Side::White, Side::Black}) {
+        for (WeaponType type : {WeaponType::Cannon, WeaponType::SCannon}) {
+            CAPTURE(attacker);
+            CAPTURE(type);
+            MatchConfig config = Quick(0, 3600);
+            const Side defender = Opponent(attacker);
+            // A straight cannon faces a slower SCannon. A sweeping SCannon
+            // attacks a cannon from its side, outside that cannon's firing lane.
+            const WeaponType target_type = type == WeaponType::Cannon ? WeaponType::SCannon : WeaponType::Cannon;
+            while (Match(config).hand(attacker)[0] != type || Match(config).hand(defender)[0] != target_type) {
+                config.seed++;
+                REQUIRE(config.seed < 1000);
+            }
+            Match match(config);
+            auto col = [&](int c) { return (uint8_t)(attacker == Side::White ? c : kCols - 1 - c); };
+            auto row = [&](int r) { return (uint8_t)(attacker == Side::White ? r : kRows - 1 - r); };
+            const uint8_t attacker_col = col(type == WeaponType::Cannon ? 6 : 3);
+            const uint8_t target_col = col(type == WeaponType::Cannon ? 6 : 5);
+            const uint8_t target_row = row(type == WeaponType::Cannon ? 8 : 9);
+            match.SubmitPlace(attacker, 1, 0, attacker_col, row(10), type);
+            match.SubmitPlace(defender, 2, 0, target_col, target_row, target_type);
+            auto events = StepN(match, 1);
+            REQUIRE(Only<EvWeaponPlaced>(events).size() == 2);
+            const uint32_t target_id = Only<EvWeaponPlaced>(events)[1].weapon_id;
+            REQUIRE(match.weapons().size() == 2);
+            CHECK(match.weapons()[1].health == kWeaponMaxHealth);
+
+            int hits = 0;
+            bool destroyed = false;
+            for (int t = 0; t < 3000 && !destroyed; t++) {
+                events = StepN(match, 1);
+                for (const auto& hit : Only<EvWeaponHit>(events)) {
+                    if (hit.weapon_id != target_id) continue;
+                    hits++;
+                    CHECK(hit.health == std::max(0, (int)kWeaponMaxHealth - hits * kProjectileDamage));
+                    // Hitting artillery consumes the projectile without flipping the ground.
+                    CHECK(match.grid().at(target_col, target_row).side == defender);
+                    for (const auto& p : match.projectiles()) CHECK(p.id != hit.proj_id);
+                    if (hit.health == 0) {
+                        destroyed = true;
+                        for (const auto& spawn : Only<EvProjSpawned>(events)) CHECK(spawn.weapon_id != target_id);
+                    } else {
+                        CHECK(match.grid().at(target_col, target_row).occupied);
+                        const auto target = std::find_if(match.weapons().begin(), match.weapons().end(),
+                                                         [&](const WeaponState& w) { return w.id == target_id; });
+                        REQUIRE(target != match.weapons().end());
+                        CHECK(target->health == hit.health);
+                    }
+                }
+            }
+            REQUIRE(destroyed);
+            CHECK(hits == 3);
+            CHECK_FALSE(match.grid().at(target_col, target_row).occupied);
+            CHECK(ValidatePlacement(match.grid(), defender, target_col, target_row) == PlaceError::Ok);
+            for (const auto& weapon : match.weapons()) CHECK(weapon.id != target_id);
+            // The surviving artillery can now capture the cleared cell.
+            events = StepN(match, 500);
+            for (const auto& spawn : Only<EvProjSpawned>(events)) CHECK(spawn.weapon_id != target_id);
+            CHECK(match.grid().at(target_col, target_row).side == attacker);
+        }
+    }
 }

@@ -92,16 +92,28 @@ void Match::Step(std::vector<Event>& events) {
     }
     pending_.clear();
 
-    // 2. projectiles, in spawn order: sweep this tick's movement, convert the first enemy tile
+    // 2. projectiles, in spawn order: enemy artillery absorbs the shell before
+    //    its tile can be converted. A destroyed weapon cannot fire later this tick.
     size_t keep = 0;
     for (size_t i = 0; i < projectiles_.size(); i++) {
         ProjectileState p = projectiles_[i];
         const Vec2 prev = p.pos;
         p.pos = {p.pos.x + p.vel.x * kDt, p.pos.y + p.vel.y * kDt};
         TileHit hit;
-        if (DetectTileCollision(grid_, prev, p.pos, p.side, hit)) {
-            grid_.at(hit.col, hit.row).side = p.side;
-            events.push_back(EvProjHit{p.id, (uint8_t)hit.col, (uint8_t)hit.row, hit.point});
+        if (DetectTileCollision(grid_, prev, p.pos, p.side, hit, weapons_)) {
+            if (hit.weapon_id != 0) {
+                auto weapon = std::find_if(weapons_.begin(), weapons_.end(),
+                                           [&](const WeaponState& w) { return w.id == hit.weapon_id; });
+                weapon->health = (uint16_t)std::max(0, (int)weapon->health - kProjectileDamage);
+                events.push_back(EvWeaponHit{p.id, weapon->id, weapon->health, hit.point});
+                if (weapon->health == 0) {
+                    grid_.RemoveWeapon(weapon->col, weapon->row);
+                    weapons_.erase(weapon);
+                }
+            } else {
+                grid_.at(hit.col, hit.row).side = p.side;
+                events.push_back(EvProjHit{p.id, (uint8_t)hit.col, (uint8_t)hit.row, hit.point});
+            }
             continue;
         }
         if (OutOfBounds(p.pos)) continue; // clients cull these themselves

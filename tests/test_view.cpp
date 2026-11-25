@@ -80,7 +80,17 @@ void CheckConverged(const Outcome& out) {
     CHECK(out.view.grid().Checksum() == out.host->match().grid().Checksum());
     CHECK(result.white == out.view.grid().Count(Side::White));
     CHECK(result.black == out.view.grid().Count(Side::Black));
-    CHECK(out.view.weapons().size() == out.host->match().weapons().size());
+    REQUIRE(out.view.weapons().size() == out.host->match().weapons().size());
+    for (size_t i = 0; i < out.view.weapons().size(); i++) {
+        const WeaponState& shown = out.view.weapons()[i];
+        const WeaponState& actual = out.host->match().weapons()[i];
+        CHECK(shown.id == actual.id);
+        CHECK(shown.side == actual.side);
+        CHECK(shown.type == actual.type);
+        CHECK(shown.health == actual.health);
+        CHECK(shown.col == actual.col);
+        CHECK(shown.row == actual.row);
+    }
     CHECK(out.view.elixir() == out.host->match().elixir(out.view.side())); // exact mirror
     CHECK(out.view.ghosts().empty());
     for (const auto& slot : out.view.hand()) CHECK_FALSE(slot.pending);
@@ -196,4 +206,89 @@ TEST_CASE("the countdown starts at 3, not 4, while playback fills its buffer") {
     }
     CHECK(highest > 2.9f);
     CHECK(highest <= 3.0f);
+}
+
+TEST_CASE("weapon damage plays back in order and destruction leaves already fired shells alive") {
+    MatchView view(0.0);
+    const Hand hand = {WeaponType::Cannon, WeaponType::Cannon, WeaponType::SCannon, WeaponType::SCannon};
+    view.OnMessage(MsgMatchStart{1, Side::White, 0, 6000, hand}, 0);
+    auto tick = [&](uint32_t t, std::vector<TickEvent> events) {
+        MsgTick msg;
+        msg.tick = t;
+        msg.events = std::move(events);
+        const double now = (double)t / kTickRate;
+        view.OnMessage(msg, now);
+        view.Update(now + 0.01);
+    };
+    tick(0, {EvWeaponPlaced{1, WeaponType::Cannon, Side::White, 6, 12},
+             EvWeaponPlaced{2, WeaponType::SCannon, Side::Black, 6, 7},
+             EvProjSpawned{1, 1, {260, 500}, {0, -800}},
+             EvProjSpawned{10, 2, {260, 300}, {0, 500}}});
+    REQUIRE(view.weapons().size() == 2);
+    CHECK(view.weapons()[1].health == kWeaponMaxHealth);
+    CHECK(view.grid().at(6, 7).occupied);
+    CHECK(view.grid().at(5, 7).padding);
+
+    tick(1, {EvWeaponHit{1, 2, 65, {260, 320}}, EvProjSpawned{2, 1, {260, 500}, {0, -800}}});
+    REQUIRE(view.weapons().size() == 2);
+    CHECK(view.weapons()[1].health == 65);
+    CHECK(view.grid().at(6, 7).side == Side::Black);
+    REQUIRE(view.projectiles().size() == 2);
+    CHECK(view.projectiles()[0].id == 10);
+    CHECK(view.projectiles()[1].id == 2);
+
+    tick(2, {EvWeaponHit{2, 2, 30, {260, 320}}, EvProjSpawned{3, 1, {260, 500}, {0, -800}}});
+    REQUIRE(view.weapons().size() == 2);
+    CHECK(view.weapons()[1].health == 30);
+    tick(3, {EvWeaponHit{3, 2, 0, {260, 320}}});
+    REQUIRE(view.weapons().size() == 1);
+    CHECK(view.weapons()[0].id == 1);
+    CHECK_FALSE(view.grid().at(6, 7).occupied);
+    CHECK_FALSE(view.grid().at(5, 7).padding);
+    CHECK(view.grid().at(6, 7).side == Side::Black);
+    REQUIRE(view.projectiles().size() == 1);
+    CHECK(view.projectiles()[0].id == 10);
+    CHECK(view.projectiles()[0].side == Side::Black);
+
+    // The destroyed gun's shell still resolves its own hit and tile ownership.
+    tick(4, {EvProjHit{10, 6, 10, {260, 400}}});
+    CHECK(view.projectiles().empty());
+    CHECK(view.grid().at(6, 10).side == Side::Black);
+}
+
+TEST_CASE("buffered weapon hits clamp shells without applying health early") {
+    bool update_before_hit = false;
+    SUBCASE("the hit arrives before the spawn is played back") {}
+    SUBCASE("the projectile is already visible when the hit arrives") { update_before_hit = true; }
+
+    MatchView view(0.25);
+    const Hand hand = {WeaponType::Cannon, WeaponType::Cannon, WeaponType::SCannon, WeaponType::SCannon};
+    view.OnMessage(MsgMatchStart{1, Side::White, 0, 6000, hand}, 0);
+    for (uint32_t t = 0; t <= 8; t++) {
+        MsgTick msg;
+        msg.tick = t;
+        if (t == 0) {
+            msg.events = {EvWeaponPlaced{1, WeaponType::Cannon, Side::White, 6, 12},
+                          EvWeaponPlaced{2, WeaponType::SCannon, Side::Black, 6, 9},
+                          EvProjSpawned{1, 1, {260, 500}, {0, -800}}};
+        } else if (t == 8) {
+            msg.events = {EvWeaponHit{1, 2, 65, {260, 400}}};
+        }
+        const double now = (double)t / kTickRate;
+        view.OnMessage(msg, now);
+        if (update_before_hit || t == 8) view.Update(now);
+    }
+
+    REQUIRE(view.weapons().size() == 2);
+    CHECK(view.weapons()[1].health == kWeaponMaxHealth);
+    CHECK(view.grid().at(6, 9).side == Side::Black);
+    REQUIRE(view.projectiles().size() == 1);
+    CHECK(view.projectiles()[0].hit_known);
+    CHECK(view.ProjectilePos(view.projectiles()[0]).y == doctest::Approx(400));
+
+    view.Update(9.0 / kTickRate);
+    REQUIRE(view.weapons().size() == 2);
+    CHECK(view.weapons()[1].health == 65);
+    CHECK(view.projectiles().empty());
+    CHECK(view.grid().at(6, 9).side == Side::Black);
 }

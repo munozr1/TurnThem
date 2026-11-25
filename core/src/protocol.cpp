@@ -22,7 +22,7 @@ enum MsgType : uint8_t {
     kMatchEnd = 0x86,
 };
 
-enum EventType : uint8_t { kWeaponPlaced = 1, kProjSpawn = 2, kProjHit = 3 };
+enum EventType : uint8_t { kWeaponPlaced = 1, kProjSpawn = 2, kProjHit = 3, kWeaponHit = 4 };
 
 // readers that reject out-of-range enums and cells
 bool ReadSide(ByteReader& in, Side& side) {
@@ -162,11 +162,17 @@ std::vector<uint8_t> Encode(const ServerMsg& msg) {
                         out.u32(e.weapon_id);
                         WriteVec(out, e.pos);
                         WriteVec(out, e.vel);
-                    } else {
+                    } else if constexpr (std::is_same_v<E, EvProjHit>) {
                         out.u8(kProjHit);
                         out.u32(e.proj_id);
                         out.u8(e.col);
                         out.u8(e.row);
+                        WriteVec(out, e.point);
+                    } else {
+                        out.u8(kWeaponHit);
+                        out.u32(e.proj_id);
+                        out.u32(e.weapon_id);
+                        out.u16(e.health);
                         WriteVec(out, e.point);
                     }
                 }, event);
@@ -261,6 +267,15 @@ bool Decode(const uint8_t* data, size_t size, ServerMsg& out) {
                         EvProjHit e;
                         e.proj_id = in.u32();
                         if (!ReadCell(in, e.col, e.row) || !ReadVec(in, e.point)) return false;
+                        m.events.push_back(e);
+                        break;
+                    }
+                    case kWeaponHit: {
+                        EvWeaponHit e;
+                        e.proj_id = in.u32();
+                        e.weapon_id = in.u32();
+                        e.health = in.u16();
+                        if (e.health > kWeaponMaxHealth || !ReadVec(in, e.point)) return false;
                         m.events.push_back(e);
                         break;
                     }

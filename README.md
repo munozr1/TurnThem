@@ -1,7 +1,7 @@
 # TurnThem
 
 A 2D "Breakout PvP" game built with Raylib. Two players place cannons on their
-own colour; every shell converts the first enemy tile it hits. Whoever owns more
+own colour; shells damage enemy artillery or convert the first enemy tile they hit. Whoever owns more
 of the arena when the 3-minute timer runs out wins.
 
 Working on a feature or fix? Start with the [contribution guide](CONTRIBUTING.md) to choose a branch, check your change, and open a pull request.
@@ -47,6 +47,10 @@ Start the game with `./build/TurnThem`.
 - **Find Match**: connect to a server and get paired with the next player who is waiting.
 
 Drag a card from the deck onto one of your own tiles (not next to another weapon). Press Esc to leave a match.
+
+Your artillery has a cool blue tint; enemy artillery has a red tint, whichever side you play. Both cannon types start with 100 health and lose 35 health per enemy shell, so three hits destroy them. Health bars shrink from green to yellow to red, and damaged artillery darkens. Friendly shells do not damage your weapons.
+
+An enemy weapon absorbs a shell before its tile can change colour. Destroyed artillery disappears and stops firing, freeing its space for a new placement where the normal tile and spacing rules allow. Shells already in flight keep moving, and a later shell can convert the cleared enemy tile.
 
 Every card costs 3 elixir. You start with 5, gain 1 every 2.8 seconds up to 10, and twice as fast in the last minute. The purple bar under the deck shows how much you have; cards you can't afford yet are greyed out.
 

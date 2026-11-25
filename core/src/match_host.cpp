@@ -42,6 +42,7 @@ void MatchHost::Step() {
         if (auto* e = std::get_if<EvWeaponPlaced>(&event)) shared.events.push_back(*e);
         else if (auto* e = std::get_if<EvProjSpawned>(&event)) shared.events.push_back(*e);
         else if (auto* e = std::get_if<EvProjHit>(&event)) shared.events.push_back(*e);
+        else if (auto* e = std::get_if<EvWeaponHit>(&event)) shared.events.push_back(*e);
         else if (auto* e = std::get_if<EvPlaceResult>(&event)) private_msgs.push_back({e->to, MsgPlaceResult{e->req_id, e->err, e->weapon_id}});
         else if (auto* e = std::get_if<EvHandSlot>(&event)) private_msgs.push_back({e->to, MsgHandSlot{e->slot, e->type}});
         else ended = &std::get<EvMatchEnded>(event);

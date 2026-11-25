@@ -109,9 +109,14 @@ void MatchScreen::Draw() const {
     DrawBoard(view_.grid());
     if (drag_slot_ >= 0 && hover_) DrawHover(hover_col_, hover_row_, hover_valid_);
     for (const tt::Ghost& ghost : view_.ghosts()) DrawGhost(sprites_, ghost, view_.side());
-    for (const tt::WeaponState& weapon : view_.weapons()) DrawWeapon(sprites_, weapon);
+    for (const tt::WeaponState& weapon : view_.weapons()) DrawWeapon(sprites_, weapon, view_.side());
     for (const tt::ViewProjectile& p : view_.projectiles()) DrawProjectile(sprites_, view_.ProjectilePos(p), p.vel);
     EndMode2D();
+
+    for (const tt::WeaponState& weapon : view_.weapons()) {
+        const Vector2 center = GetWorldToScreen2D(ToRay(tt::CellCenter(weapon.col, weapon.row)), camera_);
+        DrawWeaponHealth(weapon, view_.side(), center);
+    }
 
     DrawHud();
     deck_.Draw(view_.hand(), drag_slot_, view_.AvailableElixir());
