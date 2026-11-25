@@ -1,4 +1,5 @@
 #include "board_render.h"
+#include "weapon_visual.h"
 #include <algorithm>
 #include <math.h>
 #include "tt/weapons.h"
@@ -49,16 +50,41 @@ void DrawHover(int col, int row, bool valid) {
 }
 
 void DrawWeapon(const GameSprites& sprites, const tt::WeaponState& weapon, tt::Side viewer) {
-    const Rectangle frame = sprites.weapon(weapon.type).frames[weapon.anim_frame % tt::kAnimFrames];
+    const WeaponVisual visual = WeaponVisualFor(weapon);
+    const Rectangle frame = sprites.weapon(weapon.type).frames[visual.frame];
     const tt::Vec2 center = tt::CellCenter(weapon.col, weapon.row);
     const Rectangle dest = {center.x, center.y, frame.width, frame.height};
     const Vector2 origin = {frame.width / 2.0f, frame.height / 2.0f};
-    Color tint = weapon.side == viewer ? kFriendlyTint : kEnemyTint;
+    // Preserve olive paint and steel highlights; a team pip carries the strong
+    // blue/red identifier instead of washing the entire weapon in that color.
+    Color tint = weapon.side == viewer ? Color{230, 240, 225, 255} : Color{245, 210, 195, 255};
     const float brightness = 0.65f + 0.35f * weapon.health / tt::kWeaponMaxHealth;
     tint.r = (unsigned char)(tint.r * brightness);
     tint.g = (unsigned char)(tint.g * brightness);
     tint.b = (unsigned char)(tint.b * brightness);
     DrawTexturePro(sprites.texture(), frame, dest, origin, tt::SpriteRotationDeg(weapon), tint);
+
+    const tt::Vec2 dir = tt::DirFromDeg(tt::SpriteRotationDeg(weapon) - 90);
+    const Vector2 pip = {center.x - dir.x * 18, center.y - dir.y * 18};
+    DrawCircleV(pip, 4, Color{24, 29, 27, 255});
+    DrawCircleV(pip, 2.5f, weapon.side == viewer ? kFriendlyTint : kEnemyTint);
+
+    if (visual.shot_ticks >= 0 && visual.shot_ticks < 12) {
+        const float recoil = visual.frame == 1 ? 7.0f : 3.0f;
+        const Vector2 muzzle = {center.x + dir.x * (27 - recoil), center.y + dir.y * (27 - recoil)};
+        if (visual.shot_ticks < 3) {
+            const float flare = 1.0f - visual.shot_ticks / 3.0f;
+            const Vector2 tip = {muzzle.x + dir.x * 12 * flare, muzzle.y + dir.y * 12 * flare};
+            const Vector2 left = {muzzle.x - dir.y * 5, muzzle.y + dir.x * 5};
+            const Vector2 right = {muzzle.x + dir.y * 5, muzzle.y - dir.x * 5};
+            DrawTriangle(tip, right, left, Color{245, 174, 65, 230});
+            DrawCircleV(muzzle, 3 * flare, Color{255, 238, 182, 255});
+        } else {
+            const float drift = (float)(visual.shot_ticks - 3);
+            const Vector2 smoke = {muzzle.x + dir.x * drift, muzzle.y + dir.y * drift};
+            DrawCircleV(smoke, 2.0f + drift * 0.35f, Fade(Color{145, 143, 123, 255}, (12 - visual.shot_ticks) / 24.0f));
+        }
+    }
 }
 
 void DrawGhost(const GameSprites& sprites, const tt::Ghost& ghost, tt::Side side) {

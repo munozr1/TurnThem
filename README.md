@@ -48,11 +48,13 @@ Start the game with `./build/TurnThem`.
 
 Drag a card from the deck onto one of your own tiles (not next to another weapon). Press Esc to leave a match.
 
-Your artillery has a cool blue tint; enemy artillery has a red tint, whichever side you play. Both cannon types start with 100 health and lose 35 health per enemy shell, so three hits destroy them. Health bars shrink from green to yellow to red, and damaged artillery darkens. Friendly shells do not damage your weapons.
+The Cannon is a wheeled field gun; the SCannon is a heavier rounded swivel emplacement. Both use chunky olive armor, worn steel barrels, and brass fittings. A blue marker identifies friendly artillery and a red marker identifies enemies, with a subtle tint and matching health-bar outlines. Both cannon types start with 100 health and lose 35 health per enemy shell, so three hits destroy them. Health bars shrink from green to yellow to red, and damaged artillery darkens. Friendly shells do not damage your weapons.
+
+Shots trigger barrel recoil, recovery, a brief muzzle flash, and fading smoke. The chassis stays the same size throughout the animation, and cards and placement previews use the resting pose. These effects follow the existing simulation ticks; fire rates, SCannon sweep angles, projectile speeds, and damage are unchanged.
 
 An enemy weapon absorbs a shell before its tile can change colour. Destroyed artillery disappears and stops firing, freeing its space for a new placement where the normal tile and spacing rules allow. Shells already in flight keep moving, and a later shell can convert the cleared enemy tile.
 
-Every card costs 3 elixir. You start with 5, gain 1 every 2.8 seconds up to 10, and twice as fast in the last minute. The purple bar under the deck shows how much you have; cards you can't afford yet are greyed out.
+Deploying a weapon costs 3 **Supplies**. You start with 5, gain 1 every 2.8 seconds up to 10, and resupply twice as fast in the last minute. The olive-and-steel deployment tray uses khaki crate badges for costs and ten supply crates that fill smoothly as stock arrives. Unaffordable cards are dimmed and marked **RESUPPLY**; the final-minute bonus reads **RESUPPLY x2**. This is a visual theme change only: costs, timing, and placement rules are unchanged.
 
 Client options:
 
@@ -102,3 +104,7 @@ Then:
 4. Point players at it with `--server your.host.name` or `TURNTHEM_SERVER=your.host.name`.
 
 Players need the same game version as the server. A mismatched client is told so when it connects.
+
+## Artillery art
+
+`art/artillery_source.png` is the generated three-column, two-row source sheet (rest, recoil, recovery; Cannon above SCannon). To repack its frames into the existing atlas, run `python3 tools/pack_artillery.py` with Pillow installed. The game uses the checked-in PNGs directly; Python and Pillow are not build dependencies. Keep the fixed frame canvases and pivot positions when replacing the artwork.

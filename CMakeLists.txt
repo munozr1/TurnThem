@@ -125,6 +125,7 @@ if(TURNTHEM_BUILD_TESTS)
         tests/test_grid.cpp
         tests/test_collision.cpp
         tests/test_weapons.cpp
+        tests/test_weapon_visual.cpp
         tests/test_match.cpp
         tests/test_protocol.cpp
         tests/test_clock.cpp
@@ -132,7 +133,7 @@ if(TURNTHEM_BUILD_TESTS)
         tests/test_elixir.cpp
         tests/test_net.cpp
     )
-    target_include_directories(turnthem_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/third_party)
+    target_include_directories(turnthem_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/third_party ${PROJECT_SOURCE_DIR}/include)
     # the network tests also poke the server with a raw ENet client
     target_include_directories(turnthem_tests SYSTEM PRIVATE ${enet_SOURCE_DIR}/include)
     target_link_libraries(turnthem_tests PRIVATE turnthem_net enet)

@@ -1,4 +1,6 @@
 #include "match_screen.h"
+#include "supply_theme.h"
+#include <algorithm>
 #include <math.h>
 
 namespace {
@@ -120,7 +122,7 @@ void MatchScreen::Draw() const {
 
     DrawHud();
     deck_.Draw(view_.hand(), drag_slot_, view_.AvailableElixir());
-    DrawElixir();
+    DrawSupplies();
     if (drag_slot_ >= 0 && view_.hand()[drag_slot_].type) deck_.DrawDragged(*view_.hand()[drag_slot_].type, GetMousePosition());
 
     if (lost_) {
@@ -153,32 +155,34 @@ void MatchScreen::Draw() const {
     }
 }
 
-void MatchScreen::DrawElixir() const {
-    DrawRectangle(0, kElixirY, kScreenW, kElixirH, Color{35, 35, 35, 255});
+void MatchScreen::DrawSupplies() const {
+    using namespace supply_ui;
+    DrawRectangle(0, kSuppliesY, kScreenW, kSuppliesH, kSteel);
+    DrawLine(10, kSuppliesY, kScreenW - 10, kSuppliesY, kEdge);
     const tt::ElixirPoints points = view_.AvailableElixir();
     const int whole = points / tt::kElixirTicks;
 
-    // the count in a drop-coloured circle, then a 10-segment bar that fills smoothly
-    const Vector2 icon = {20, kElixirY + kElixirH / 2.0f};
-    DrawCircleV(icon, 11, Color{190, 70, 230, 255});
-    const char* count = TextFormat("%d", whole);
-    DrawText(count, (int)icon.x - MeasureText(count, 16) / 2, (int)icon.y - 8, 16, RAYWHITE);
+    DrawCrate({16, kSuppliesY + 8.0f, 22, 16}, kKhaki);
+    DrawText(TextFormat("SUPPLIES  %d / %d", whole, tt::kMaxElixir), 46, kSuppliesY + 8, 18, kInk);
+    const bool doubled = view_.DoubleElixir();
+    const char* status = Over() || view_.phase() != tt::MatchView::Phase::Running ? "STANDBY" :
+                         doubled ? "RESUPPLY x2" : points == tt::kMaxElixirPoints ? "DEPOT FULL" : "RESUPPLY";
+    DrawText(status, kScreenW - 16 - MeasureText(status, 14), kSuppliesY + 10, 14, doubled ? kKhaki : kMuted);
 
-    const Rectangle bar = {40, kElixirY + 6.0f, kScreenW - 50.0f, kElixirH - 12.0f};
-    DrawRectangleRec(bar, Color{60, 20, 80, 255});
-    const float filled = bar.width * points / (float)tt::kMaxElixirPoints;
-    DrawRectangleRec({bar.x, bar.y, filled, bar.height}, Color{190, 70, 230, 255});
-    for (int i = 1; i < tt::kMaxElixir; i++) {
-        const float x = bar.x + bar.width * i / tt::kMaxElixir;
-        DrawLineEx({x, bar.y}, {x, bar.y + bar.height}, 2, Color{35, 35, 35, 255});
-    }
-    if (view_.DoubleElixir()) {
-        DrawText("x2", (int)(bar.x + bar.width - 24), (int)bar.y, 16, Color{255, 220, 90, 255});
+    // Each crate is one supply. The next crate fills smoothly from the bottom,
+    // using the same predicted balance that reserves pending deployments.
+    constexpr float gap = 5;
+    const float width = (kScreenW - 32.0f - gap * (tt::kMaxElixir - 1)) / tt::kMaxElixir;
+    for (int i = 0; i < tt::kMaxElixir; i++) {
+        const Rectangle crate = {16 + i * (width + gap), kSuppliesY + 31.0f, width, 19};
+        const float fill = std::clamp(points / (float)tt::kElixirTicks - i, 0.0f, 1.0f);
+        DrawCrate(crate, doubled ? kKhaki : kOlive, fill);
+        DrawRectangleLinesEx(crate, 1, fill >= 1 ? kKhaki : kEdge);
     }
 }
 
 void MatchScreen::DrawHud() const {
-    DrawRectangle(0, kHudY, kScreenW, kHudH, Color{35, 35, 35, 255});
+    DrawRectangle(0, kHudY, kScreenW, kHudH, supply_ui::kSteel);
     const tt::Side me = view_.side(), them = tt::Opponent(me);
     const int mine = view_.grid().Count(me), theirs = view_.grid().Count(them);
 
