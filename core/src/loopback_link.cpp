@@ -28,10 +28,14 @@ void LoopbackLink::BotAct() {
     const Match& match = host_->match();
     const Side bot = Opponent(options_.human);
     if (match.tick() < bot_next_tick_ || match.tick() < match.start_tick()) return;
-    bot_next_tick_ = match.tick() + 90 + (uint32_t)(rng_() % 120); // every 1.5-3.5 s
+    const uint8_t slot = (uint8_t)(rng_() % kHandSize);
+    if (match.elixir(bot) < CardCostPoints(match.hand(bot)[slot])) {
+        bot_next_tick_ = match.tick() + 20; // saving up
+        return;
+    }
+    bot_next_tick_ = match.tick() + 30 + (uint32_t)(rng_() % 90); // then a 0.5-2 s pause
     const auto choice = ChooseBotPlacement(match.grid(), bot, rng_);
     if (!choice) return;
-    const uint8_t slot = (uint8_t)(rng_() % kHandSize);
     host_->OnClientMessage(bot, MsgPlaceRequest{bot_req_id_++, slot, choice->col, choice->row, match.hand(bot)[slot]});
 }
 

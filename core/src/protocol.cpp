@@ -139,6 +139,7 @@ std::vector<uint8_t> Encode(const ServerMsg& msg) {
             out.u32(m.start_tick);
             out.u32(m.end_tick);
             for (WeaponType card : m.hand) out.u8((uint8_t)card);
+            out.u16((uint16_t)m.start_elixir);
         } else if constexpr (std::is_same_v<T, MsgTick>) {
             out.u8(kTick);
             out.u32(m.tick);
@@ -224,7 +225,8 @@ bool Decode(const uint8_t* data, size_t size, ServerMsg& out) {
             m.end_tick = in.u32();
             for (WeaponType& card : m.hand)
                 if (!ReadWeaponType(in, card)) return false;
-            if (m.end_tick < m.start_tick) return false;
+            m.start_elixir = in.u16();
+            if (m.end_tick < m.start_tick || m.start_elixir > kMaxElixirPoints) return false;
             out = m;
             break;
         }

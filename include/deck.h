@@ -16,8 +16,9 @@ public:
     bool Contains(Vector2 point) const;
     // slot under `point` holding a card that can be played, or -1
     int SlotAt(Vector2 point, const Hand& hand) const;
-    // `dragging` is drawn at the mouse instead (DrawDragged)
-    void Draw(const Hand& hand, int dragging) const;
+    // `dragging` is drawn at the mouse instead (DrawDragged); cards costing more
+    // than `available` elixir are dimmed
+    void Draw(const Hand& hand, int dragging, tt::ElixirPoints available) const;
     void DrawDragged(tt::WeaponType type, Vector2 mouse) const;
 
 private:

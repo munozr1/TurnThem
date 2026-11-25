@@ -113,7 +113,9 @@ TEST_CASE("every placement rule is enforced") {
 }
 
 TEST_CASE("placements are rate limited per player") {
-    Match match(Quick());
+    MatchConfig config = Quick();
+    config.start_elixir = kMaxElixirPoints; // enough for several cards: this is about the rate limit
+    Match match(config);
     StepTo(match, match.start_tick());
     CHECK(Place(match, Side::White, 2, 15) == PlaceError::Ok);
     CHECK(Place(match, Side::White, 6, 15) == PlaceError::RateLimited);

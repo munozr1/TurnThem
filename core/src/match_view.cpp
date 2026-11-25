@@ -18,6 +18,7 @@ void MatchView::Reset(const MsgMatchStart& start, double now_s) {
     projectiles_.clear();
     ghosts_.clear();
     for (int i = 0; i < kHandSize; i++) hand_[i] = {start.hand[i], false};
+    elixir_ = start.start_elixir;
     buffered_.clear();
     early_hits_.clear();
     result_.reset();
@@ -73,12 +74,23 @@ void MatchView::OnMessage(const ServerMsg& msg, double now_s) {
 }
 
 void MatchView::ApplyTick(const MsgTick& tick) {
+    // same order as the server: regenerate, then pay for this tick's placements
+    elixir_ = Regenerate(elixir_, tick.tick, start_tick_, end_tick_);
     for (const TickEvent& event : tick.events) {
         if (auto* placed = std::get_if<EvWeaponPlaced>(&event)) {
+            if (placed->side == side_) elixir_ -= CardCostPoints(placed->type);
             grid_.MarkWeapon(placed->col, placed->row);
             weapons_.push_back(MakeWeapon(placed->weapon_id, placed->type, placed->side, placed->col, placed->row, tick.tick));
+            // our ghost for this weapon, even if its PLACE_RESULT hasn't arrived yet
+            // (weapon_id still 0); otherwise its cost would count twice until it does.
+            // Only one of our ghosts can sit on a cell, and only its request can put
+            // our weapon there.
+            const bool ours = placed->side == side_;
             ghosts_.erase(std::remove_if(ghosts_.begin(), ghosts_.end(),
-                                         [&](const Ghost& g) { return g.weapon_id == placed->weapon_id; }),
+                                         [&](const Ghost& g) {
+                                             return g.weapon_id == placed->weapon_id ||
+                                                    (ours && g.weapon_id == 0 && g.col == placed->col && g.row == placed->row);
+                                         }),
                           ghosts_.end());
         } else if (auto* spawn = std::get_if<EvProjSpawned>(&event)) {
             auto weapon = std::find_if(weapons_.begin(), weapons_.end(),
@@ -189,9 +201,27 @@ PlaceError MatchView::CheckLocal(int col, int row) const {
     return PlaceError::Ok;
 }
 
+bool MatchView::DoubleElixir() const {
+    const double pb = clock_.playback();
+    return pb >= 0 && RegenOnTick((uint32_t)pb, start_tick_, end_tick_) == 2;
+}
+
+ElixirPoints MatchView::AvailableElixir() const {
+    ElixirPoints available = elixir_;
+    for (const Ghost& ghost : ghosts_) available -= CardCostPoints(ghost.type);
+    return std::max<ElixirPoints>(0, available);
+}
+
+PlaceError MatchView::CheckPlace(uint8_t slot, int col, int row) const {
+    if (slot >= kHandSize || !hand_[slot].type || hand_[slot].pending) return PlaceError::BadSlot;
+    const PlaceError err = CheckLocal(col, row);
+    if (err != PlaceError::Ok) return err;
+    if (!CanAfford(*hand_[slot].type)) return PlaceError::NotEnoughElixir;
+    return PlaceError::Ok;
+}
+
 std::optional<MsgPlaceRequest> MatchView::RequestPlace(uint8_t slot, int col, int row) {
-    if (slot >= kHandSize || !hand_[slot].type || hand_[slot].pending) return std::nullopt;
-    if (CheckLocal(col, row) != PlaceError::Ok) return std::nullopt;
+    if (CheckPlace(slot, col, row) != PlaceError::Ok) return std::nullopt;
     const MsgPlaceRequest request{next_req_id_++, slot, (uint8_t)col, (uint8_t)row, *hand_[slot].type};
     ghosts_.push_back({request.req_id, 0, slot, request.expected, request.col, request.row});
     hand_[slot].pending = true;

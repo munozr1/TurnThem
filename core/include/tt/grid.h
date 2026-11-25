@@ -45,6 +45,7 @@ enum class PlaceError : uint8_t {
     Occupied,
     Padding,
     RateLimited,
+    NotEnoughElixir,
     Count
 };
 const char* PlaceErrorText(PlaceError err);

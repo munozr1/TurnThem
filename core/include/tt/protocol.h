@@ -9,7 +9,7 @@
 // byte is the message type, all integers little-endian, floats as IEEE-754 bits.
 namespace tt {
 
-constexpr uint32_t kProtocolVersion = 1; // sent as ENet's connect data
+constexpr uint32_t kProtocolVersion = 2; // sent as ENet's connect data; 2 = elixir
 constexpr uint16_t kDefaultPort = 7777;
 constexpr uint32_t kChecksumEvery = 60;  // ticks between grid checksums in TICK
 
@@ -64,6 +64,7 @@ struct MsgMatchStart {
     Side your_side;
     uint32_t start_tick, end_tick;
     Hand hand;
+    ElixirPoints start_elixir = kStartElixirPoints; // the client mirrors elixir from here
 };
 // sent every tick, events or not: it is also the clock
 struct MsgTick {

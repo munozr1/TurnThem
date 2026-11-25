@@ -4,7 +4,7 @@ namespace tt {
 
 MatchHost::MatchHost(uint32_t match_id, const MatchConfig& config) : id_(match_id), match_(config) {
     for (Side side : {Side::White, Side::Black}) {
-        Send(side, MsgMatchStart{id_, side, match_.start_tick(), match_.end_tick(), match_.hand(side)});
+        Send(side, MsgMatchStart{id_, side, match_.start_tick(), match_.end_tick(), match_.hand(side), match_.elixir(side)});
     }
 }
 
